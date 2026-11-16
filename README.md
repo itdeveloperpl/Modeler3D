@@ -7,6 +7,8 @@ slicers – and always saves watertight solids ready to print.
 > The user interface is available in **English and Polish** – switch it in **⚙ Settings → Language**
 > (the choice is remembered; by default the browser language is used).
 
+![3D Modeler – a box with ventilation slots](docs/screenshot.png)
+
 ## Getting started
 
 Requires Node.js 18+.
