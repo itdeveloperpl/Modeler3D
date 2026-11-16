@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Model, ModelMesh } from './model';
 import type { Viewport } from './viewport';
 import { cleanGeometry } from './primitives';
+import { t } from './i18n';
 
 /**
  * Most: łączy dwie płaskie ściany (tej samej albo dwóch brył) nowymi ścianami bocznymi.
@@ -72,7 +73,7 @@ export class BridgeTool {
   setActive(on: boolean) {
     this.active = on;
     this.reset();
-    if (on) this.message('Most: kliknij płaską ścianę pierwszej bryły');
+    if (on) this.message(t.bridge.pickFirst);
   }
 
   reset() {
@@ -100,10 +101,10 @@ export class BridgeTool {
       this.result = null;
       this.shift = 0;
       this.segments = null;
-      this.message('Most: kliknij płaską ścianę drugiej bryły');
+      this.message(t.bridge.pickSecond);
     } else if (this.a) {
       this.a = null;
-      this.message('Most: kliknij płaską ścianę pierwszej bryły');
+      this.message(t.bridge.pickFirst);
     } else return false;
     this.redraw();
     return true;
@@ -137,16 +138,16 @@ export class BridgeTool {
     const pick = this.pickFace(e);
     if (!pick) return;
     if ('error' in pick) {
-      this.message(`Most: ${pick.error}`);
+      this.message(t.bridge.error(pick.error));
       return;
     }
     if (!this.a) {
       this.a = pick;
       this.hover = null;
-      this.message('Most: kliknij płaską ścianę drugiej bryły (może być ta sama bryła)');
+      this.message(t.bridge.pickSecondSame);
     } else {
       if (pick.baked === this.a.baked && [...pick.tris].some((t) => this.a!.tris.has(t))) {
-        this.message('Most: wybierz inną ścianę niż pierwsza');
+        this.message(t.bridge.pickOther);
         return;
       }
       this.b = pick;
@@ -162,7 +163,7 @@ export class BridgeTool {
   apply(): boolean {
     if (!this.a || !this.b || !this.result) return false;
     if (!this.result.closed) {
-      this.message('Most: nie można zatwierdzić – wynik nie byłby szczelną bryłą (np. most pokrywa się z istniejącą ścianą). Esc – wybierz inne ściany');
+      this.message(t.bridge.notClosed);
       return false;
     }
     const target = this.a.baked.mesh;
@@ -181,7 +182,7 @@ export class BridgeTool {
     // scalenie punktów (np. gdy ściany się stykały) nie może zepsuć szczelności
     if (!isClosed(Array.from(clean.getIndex()!.array))) {
       clean.dispose();
-      this.message('Most: nie można zatwierdzić – po scaleniu punktów bryła nie byłaby szczelna. Odsuń bryły od siebie i spróbuj ponownie');
+      this.message(t.bridge.notClosedAfterMerge);
       return false;
     }
 
@@ -194,9 +195,7 @@ export class BridgeTool {
     }
     this.model.select(target);
     this.reset();
-    this.message(`Most gotowy: ${r.bridgeTris.length / 3} nowych ścian` +
-      (r.warnings.length ? ` – UWAGA: ${r.warnings.join('; ')}` : '') +
-      ' · kliknij ścianę, aby zrobić kolejny most · B – wyłącz');
+    this.message(t.bridge.done(r.bridgeTris.length / 3, r.warnings));
     return true;
   }
 
@@ -342,23 +341,20 @@ export class BridgeTool {
 
     // ---- kontrola ----
     const warnings: string[] = [];
-    if (this.folded) warnings.push('zakręt jest za ciasny na grubość mostu – ściany mostu się zawijają; odsuń bryły od siebie');
+    if (this.folded) warnings.push(t.bridge.folded);
     const toB = B.center.clone().sub(A.center);
     if (S === 0 && (A.normal.dot(toB) <= 0 || B.normal.dot(toB) >= 0)) {
-      warnings.push('ściany nie są zwrócone do siebie – użyj łuku (↑)');
+      warnings.push(t.bridge.notFacing);
     } else {
       const crossed = this.crossesMesh(positions, index.slice(0, remaining), polylines);
-      if (crossed === '') warnings.push('most przechodzi przez łączoną bryłę' + (S === 0 ? ' – spróbuj łuku (↑)' : ''));
-      else if (crossed) warnings.push(`most przechodzi przez bryłę „${crossed}”`);
+      if (crossed === '') warnings.push(t.bridge.crossesSelf(S === 0));
+      else if (crossed) warnings.push(t.bridge.crossesOther(crossed));
     }
     const closed = isClosed(index);
-    if (!closed) warnings.push('wynik nie byłby szczelny – nie można zatwierdzić');
+    if (!closed) warnings.push(t.bridge.wouldLeak);
 
     this.result = { positions, index, bridgeTris, warnings, closed };
-    this.message(
-      `Most – podgląd (${S === 0 ? 'prosty' : `łuk, ${S} segm.`}): Enter zatwierdź · Esc cofnij · ↑/↓ segmenty · ←/→ obróć dopasowanie` +
-      (warnings.length ? ` · UWAGA: ${warnings.join('; ')}` : ''),
-    );
+    this.message(t.bridge.preview(S, warnings));
     this.redraw();
   }
 
@@ -478,23 +474,23 @@ export class BridgeTool {
       }
     }
     const next = new Map<number, number>();
-    for (const t of tris) {
+    for (const tri of tris) {
       for (let k = 0; k < 3; k++) {
-        const a = baked.index[t * 3 + k], c = baked.index[t * 3 + ((k + 1) % 3)];
+        const a = baked.index[tri * 3 + k], c = baked.index[tri * 3 + ((k + 1) % 3)];
         if (count.get(a < c ? `${a}_${c}` : `${c}_${a}`) !== 1) continue;
-        if (next.has(a)) return { error: 'ta ściana ma nietypowy kształt (punkty obrysu się stykają)' };
+        if (next.has(a)) return { error: t.bridge.oddOutline };
         next.set(a, c);
       }
     }
-    if (next.size < 3) return { error: 'nie udało się wyznaczyć obrysu ściany' };
+    if (next.size < 3) return { error: t.bridge.noOutline };
     const start = next.keys().next().value as number;
     const loop = [start];
     for (let v = next.get(start)!; v !== start; v = next.get(v)!) {
-      if (v === undefined || loop.length > next.size) return { error: 'nie udało się wyznaczyć obrysu ściany' };
+      if (v === undefined || loop.length > next.size) return { error: t.bridge.noOutline };
       loop.push(v);
     }
     if (loop.length !== next.size) {
-      return { error: 'ściana z otworem – most łączy tylko ściany bez otworów' };
+      return { error: t.bridge.hasHole };
     }
 
     const center = loop.reduce((s, i) => s.add(P(i)), new THREE.Vector3()).divideScalar(loop.length);

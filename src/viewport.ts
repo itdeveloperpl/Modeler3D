@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { AxisGizmo, type AxisDir } from './axisGizmo';
+import { t } from './i18n';
 
 export type ViewMode = '3d' | 'top';
 
@@ -126,7 +127,7 @@ export class Viewport {
     this.topControls.enabled = mode === 'top';
     this.transform.camera = this.camera;
     this.sun.castShadow = mode === '3d'; // w widoku z góry cienie tylko zaciemniają rzut
-    this.label.textContent = mode === '3d' ? 'Perspektywa 3D' : 'Widok z góry (XY)';
+    this.label.textContent = mode === '3d' ? t.view.persp : t.view.top;
     this.viewListeners.forEach((fn) => fn(mode));
   }
 

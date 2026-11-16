@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { dropToPlate, objectSize, type Model, type ModelMesh } from './model';
 import type { VertexEditor } from './vertexEditor';
+import { t } from './i18n';
 
 type Axis = 'x' | 'y' | 'z';
 const AXES: Axis[] = ['x', 'y', 'z'];
@@ -43,10 +44,20 @@ export class Sidebar {
     this.renderProps();
   }
 
+  /** Buduje panel od nowa (np. po zmianie języka). */
+  rebuild() {
+    this.builtFor = '';
+    this.refresh();
+  }
+
   private renderOutliner() {
     this.outliner.innerHTML = '';
     if (this.model.objects.length === 0) {
-      this.outliner.innerHTML = '<li class="muted" style="cursor:default">Brak – dodaj bryłę z paska u góry</li>';
+      const li = document.createElement('li');
+      li.className = 'muted';
+      li.style.cursor = 'default';
+      li.textContent = t.sidebar.empty;
+      this.outliner.appendChild(li);
       return;
     }
     for (const o of this.model.objects) {
@@ -70,7 +81,7 @@ export class Sidebar {
       this.builtFor = key;
       this.inputs.clear();
       this.body.innerHTML = '';
-      if (!sel) this.body.innerHTML = '<p class="muted">Nic nie zaznaczono</p>';
+      if (!sel) this.body.innerHTML = `<p class="muted">${t.sidebar.nothingSelected}</p>`;
       else if (mode === 'object') this.buildObjectProps(sel);
       else this.buildVertexProps();
     }
@@ -92,7 +103,7 @@ export class Sidebar {
 
     const color = document.createElement('div');
     color.className = 'color-row';
-    color.innerHTML = '<span>Kolor</span>';
+    color.innerHTML = `<span>${t.sidebar.color}</span>`;
     const ci = document.createElement('input');
     ci.type = 'color';
     ci.value = '#' + sel.material.color.getHexString();
@@ -105,9 +116,9 @@ export class Sidebar {
     this.body.appendChild(color);
 
     this.body.appendChild(axisHeader());
-    this.row('Pozycja', 'pos', (a, v) => { sel.position[a] = v; });
-    this.row('Obrót °', 'rot', (a, v) => { sel.rotation[a] = THREE.MathUtils.degToRad(v); });
-    this.row('Wymiar', 'size', (a, v) => {
+    this.row(t.sidebar.position, 'pos', (a, v) => { sel.position[a] = v; });
+    this.row(t.sidebar.rotation, 'rot', (a, v) => { sel.rotation[a] = THREE.MathUtils.degToRad(v); });
+    this.row(t.sidebar.size, 'size', (a, v) => {
       if (v <= 0) return;
       const base = sel.geometry.boundingBox!.getSize(new THREE.Vector3())[a];
       if (base > 1e-6) sel.scale[a] = v / base;
@@ -117,7 +128,7 @@ export class Sidebar {
     const btns = document.createElement('div');
     btns.className = 'btn-row';
     btns.append(
-      button('Połóż na stole', () => { this.model.checkpoint(); dropToPlate(sel); this.model.emit(); }),
+      button(t.sidebar.dropToBed, () => { this.model.checkpoint(); dropToPlate(sel); this.model.emit(); }),
     );
     this.body.appendChild(btns);
     this.buildArrayProps(sel);
@@ -127,7 +138,7 @@ export class Sidebar {
   private buildArrayProps(sel: ModelMesh) {
     const box = document.createElement('div');
     box.className = 'ops';
-    box.innerHTML = '<h3>Powiel w rzędzie</h3>';
+    box.innerHTML = `<h3>${t.sidebar.array}</h3>`;
     const grid = document.createElement('div');
     grid.className = 'param-grid';
 
@@ -144,13 +155,13 @@ export class Sidebar {
       grid.append(l, input, u);
       return input;
     };
-    const count = num('Kopie', this.arrayState.count, 'szt.', '1', '1');
-    const gap = num('Przerwa', this.arrayState.gap, 'mm', '0', '1');
+    const count = num(t.sidebar.copies, this.arrayState.count, t.sidebar.pcs, '1', '1');
+    const gap = num(t.sidebar.gap, this.arrayState.gap, 'mm', '0', '1');
     count.oninput = () => (this.arrayState.count = count.value);
     gap.oninput = () => (this.arrayState.gap = gap.value);
 
     const dirLabel = document.createElement('label');
-    dirLabel.textContent = 'Kierunek';
+    dirLabel.textContent = t.sidebar.direction;
     const dirs = document.createElement('div');
     dirs.className = 'btn-row seg';
     dirs.style.margin = '0';
@@ -165,7 +176,7 @@ export class Sidebar {
     grid.append(dirLabel, dirs, document.createElement('span'));
     box.appendChild(grid);
 
-    const go = button('Utwórz kopie', () => {
+    const go = button(t.sidebar.createCopies, () => {
       const n = Math.floor(parseFloat(count.value));
       const g = parseFloat(gap.value);
       if (!(n >= 1) || !(g >= 0)) return;
@@ -194,13 +205,13 @@ export class Sidebar {
     this.body.appendChild(info);
     if (this.editor.selection.size > 0) {
       this.body.appendChild(axisHeader());
-      this.row('Punkt', 'vtx', (a, v) => this.editor.setSelectedAxis(a, v), true);
+      this.row(t.sidebar.point, 'vtx', (a, v) => this.editor.setSelectedAxis(a, v), true);
     }
     const btns = document.createElement('div');
     btns.className = 'btn-row';
     btns.append(
-      button('Zaznacz wszystkie', () => this.editor.selectAll()),
-      button('Odznacz', () => this.editor.clearSelection()),
+      button(t.sidebar.selectAll, () => this.editor.selectAll()),
+      button(t.sidebar.deselect, () => this.editor.clearSelection()),
     );
     this.body.appendChild(btns);
     this.buildMirrorProps();
@@ -210,14 +221,14 @@ export class Sidebar {
   private buildMirrorProps() {
     const box = document.createElement('div');
     box.className = 'ops';
-    box.innerHTML = '<h3>Symetria (lustro)</h3>';
+    box.innerHTML = `<h3>${t.sidebar.mirror}</h3>`;
     const axes = document.createElement('div');
     axes.className = 'btn-row seg';
     const current = this.editor.mirror?.axis ?? null;
-    for (const [label, axis] of [['Wył.', null], ['X', 'x'], ['Y', 'y'], ['Z', 'z']] as const) {
+    for (const [label, axis] of [[t.sidebar.mirrorOff, null], ['X', 'x'], ['Y', 'y'], ['Z', 'z']] as const) {
       const b = button(label, () => this.editor.setMirror(axis));
       b.classList.toggle('active', current === axis);
-      b.title = axis ? `Lustro prostopadłe do osi ${label} bryły` : 'Bez symetrii';
+      b.title = axis ? t.sidebar.mirrorAxisTitle(label) : t.sidebar.mirrorNone;
       axes.appendChild(b);
     }
     box.appendChild(axes);
@@ -225,7 +236,7 @@ export class Sidebar {
     if (current) {
       const row = document.createElement('div');
       row.className = 'mirror-row';
-      row.innerHTML = `<span>Płaszczyzna ${current.toUpperCase()} =</span>`;
+      row.innerHTML = `<span>${t.sidebar.plane(current.toUpperCase())}</span>`;
       const input = document.createElement('input');
       input.type = 'number';
       input.step = '1';
@@ -236,7 +247,7 @@ export class Sidebar {
       };
       this.inputs.set('mirror', input);
       row.append(input, document.createTextNode('mm'));
-      row.appendChild(button('Środek', () => {
+      row.appendChild(button(t.sidebar.center, () => {
         const g = this.model.selected!.geometry;
         g.computeBoundingBox();
         this.editor.setMirror(current, g.boundingBox!.getCenter(new THREE.Vector3())[current]);
@@ -249,7 +260,7 @@ export class Sidebar {
     } else {
       const hint = document.createElement('p');
       hint.className = 'muted small';
-      hint.textContent = 'Wybierz oś – zmiany punktów po jednej stronie powtórzą się w lustrze po drugiej. Klawisz M przełącza.';
+      hint.textContent = t.sidebar.mirrorHint;
       box.appendChild(hint);
     }
     this.body.appendChild(box);
@@ -261,10 +272,10 @@ export class Sidebar {
    */
   private buildRoundProps(sel: ModelMesh) {
     const kind = sel.userData.kind as string;
-    if (!ROUND_KINDS[kind]) return;
+    if (!ROUND_KINDS.includes(kind)) return;
     const box = document.createElement('div');
     box.className = 'ops';
-    box.innerHTML = `<h3>${ROUND_KINDS[kind]}</h3>`;
+    box.innerHTML = `<h3>${t.primitive[kind as RoundKind]}</h3>`;
     const grid = document.createElement('div');
     grid.className = 'param-grid';
 
@@ -297,9 +308,9 @@ export class Sidebar {
       grid.append(l, input, unit);
       this.inputs.set(key, input);
     };
-    field('Średnica', 'round.d', (v) => setRadius(v / 2), '0.1');
-    field('Promień', 'round.r', (v) => setRadius(v), '0.1');
-    if (kind !== 'sphere') field('Wysokość', 'round.h', (v) => { sel.scale.z = v / base().z; }, '1');
+    field(t.sidebar.diameter, 'round.d', (v) => setRadius(v / 2), '0.1');
+    field(t.sidebar.radius, 'round.r', (v) => setRadius(v), '0.1');
+    if (kind !== 'sphere') field(t.sidebar.height, 'round.h', (v) => { sel.scale.z = v / base().z; }, '1');
     box.appendChild(grid);
 
     const note = document.createElement('p');
@@ -346,7 +357,7 @@ export class Sidebar {
         set(`rot.${a}`, THREE.MathUtils.radToDeg(sel.rotation[a]));
         set(`size.${a}`, size[a]);
       }
-      if (ROUND_KINDS[sel.userData.kind]) {
+      if (ROUND_KINDS.includes(sel.userData.kind)) {
         // średnica z szerokości; gdy X ≠ Y bryła jest owalna – pokazujemy X i informujemy
         set('round.d', size.x);
         set('round.r', size.x / 2);
@@ -354,7 +365,7 @@ export class Sidebar {
         const note = this.body.querySelector<HTMLElement>('[data-role=roundnote]');
         if (note) {
           note.textContent = Math.abs(size.x - size.y) > 0.01
-            ? `Owal: ${fmt(size.x)} × ${fmt(size.y)} mm – wpisanie średnicy wyrówna go do koła.`
+            ? t.sidebar.oval(fmt(size.x), fmt(size.y))
             : '';
         }
       }
@@ -363,8 +374,8 @@ export class Sidebar {
       const info = this.body.querySelector<HTMLElement>('[data-role=vinfo]');
       if (info) {
         info.textContent = n === 0
-          ? 'Kliknij punkt na bryle i przeciągnij. Ctrl+klik – zaznacz kilka. Podwójny klik na krawędzi lub ścianie – nowy punkt.'
-          : `Zaznaczone punkty: ${n}${n > 1 ? ' (pola zmieniają wszystkie naraz)' : ''}`;
+          ? t.sidebar.vertexHint
+          : t.sidebar.vertexSelected(n);
       }
       const w = this.editor.selectedWorld();
       if (w) for (const a of AXES) set(`vtx.${a}`, w[a]);
@@ -379,15 +390,15 @@ export class Sidebar {
             mi.dataset.state = state;
             mi.dataset.n = String(n);
             mi.innerHTML = state === 'ok'
-              ? 'Bryła jest symetryczna. Punkty na płaszczyźnie przesuwają się tylko po niej.'
+              ? t.sidebar.mirrorOk
               : state === 'topo'
-                ? '<span class="warn">Trójkąty po obu stronach są ułożone różnie</span> – dodawane punkty i linie nie będą lustrzane.'
-                : `<span class="warn">${n} punkt(ów) bez pary</span> (czerwone) – bryła nie jest symetryczna; te punkty przesuwają się bez odbicia.`;
+                ? t.sidebar.mirrorTopo
+                : t.sidebar.mirrorUnpaired(n);
             if (state !== 'ok') {
               const row = document.createElement('div');
               row.className = 'btn-row';
               row.append(
-                button(`Symetryzuj +${ax} → −${ax}`, () => this.editor.symmetrizeMesh(1)),
+                button(`${t.sidebar.symmetrize} +${ax} → −${ax}`, () => this.editor.symmetrizeMesh(1)),
                 button(`−${ax} → +${ax}`, () => this.editor.symmetrizeMesh(-1)),
               );
               mi.appendChild(row);
@@ -399,7 +410,8 @@ export class Sidebar {
   }
 }
 
-const ROUND_KINDS: Record<string, string> = { cylinder: 'Walec', cone: 'Stożek', sphere: 'Kula' };
+type RoundKind = 'cylinder' | 'cone' | 'sphere';
+const ROUND_KINDS: string[] = ['cylinder', 'cone', 'sphere'] satisfies RoundKind[];
 
 function axisHeader() {
   const h = document.createElement('div');

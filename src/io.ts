@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import { strToU8, zipSync } from 'fflate';
 import type { DocData, Model, ModelMesh } from './model';
+import { t } from './i18n';
 
 function download(data: BlobPart, filename: string, type: string) {
   const url = URL.createObjectURL(new Blob([data], { type }));
@@ -88,7 +89,7 @@ ${t.join('\n')}
   const items = list.map((_, i) => `    <item objectid="${i + 2}" />`).join('\n');
 
   const modelXml = `<?xml version="1.0" encoding="UTF-8"?>
-<model unit="millimeter" xml:lang="pl-PL" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+<model unit="millimeter" xml:lang="${t.misc.xmlLang}" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
   <metadata name="Application">Modeler 3D</metadata>
   <metadata name="CreationDate">${new Date().toISOString().slice(0, 10)}</metadata>
   <resources>
@@ -126,11 +127,11 @@ ${items}
 }
 
 export function saveProject(model: Model) {
-  download(JSON.stringify(model.serialize()), 'projekt.json', 'application/json');
+  download(JSON.stringify(model.serialize()), t.misc.projectFile, 'application/json');
 }
 
 export async function openProject(model: Model, file: File) {
   const doc = JSON.parse(await file.text()) as DocData;
-  if (doc.version !== 1 || !Array.isArray(doc.objects)) throw new Error('Nieznany format pliku');
+  if (doc.version !== 1 || !Array.isArray(doc.objects)) throw new Error(t.misc.unknownFormat);
   model.load(doc);
 }

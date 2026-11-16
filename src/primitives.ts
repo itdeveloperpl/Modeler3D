@@ -4,14 +4,6 @@ import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 /** Rodzaje brył podstawowych. Wszystkie wymiary w milimetrach, oś Z w górę. */
 export type PrimitiveKind = 'box' | 'cylinder' | 'sphere' | 'cone' | 'pyramid';
 
-export const PRIMITIVE_NAMES: Record<PrimitiveKind, string> = {
-  box: 'Sześcian',
-  cylinder: 'Walec',
-  sphere: 'Kula',
-  cone: 'Stożek',
-  pyramid: 'Ostrosłup',
-};
-
 /**
  * Tworzy geometrię bryły. Początek układu lokalnego leży na środku podstawy,
  * dzięki czemu nowa bryła stoi na stole (z = 0), a skalowanie jej nie "zanurza".

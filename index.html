@@ -10,64 +10,64 @@
     <div id="app">
       <header id="toolbar">
         <div class="group">
-          <span class="label">Dodaj</span>
-          <button data-add="box">Sześcian</button>
-          <button data-add="cylinder">Walec</button>
-          <button data-add="sphere">Kula</button>
-          <button data-add="cone">Stożek</button>
-          <button data-add="pyramid">Ostrosłup</button>
+          <span class="label" data-i18n="ui.add">Dodaj</span>
+          <button data-add="box" data-i18n="primitive.box">Sześcian</button>
+          <button data-add="cylinder" data-i18n="primitive.cylinder">Walec</button>
+          <button data-add="sphere" data-i18n="primitive.sphere">Kula</button>
+          <button data-add="cone" data-i18n="primitive.cone">Stożek</button>
+          <button data-add="pyramid" data-i18n="primitive.pyramid">Ostrosłup</button>
         </div>
         <div class="group">
-          <span class="label">Edycja</span>
-          <button id="undo" title="Ctrl+Z">Cofnij</button>
-          <button id="redo" title="Ctrl+Y">Ponów</button>
+          <span class="label" data-i18n="ui.edit">Edycja</span>
+          <button id="undo" title="Ctrl+Z" data-i18n="ui.undo">Cofnij</button>
+          <button id="redo" title="Ctrl+Y" data-i18n="ui.redo">Ponów</button>
           <span class="sep"></span>
-          <button id="mode-object" class="toggle active" title="Tab – edycja całych brył">Obiekt</button>
-          <button id="mode-vertex" class="toggle" title="Tab – edycja punktów bryły">Wierzchołki</button>
+          <button id="mode-object" class="toggle active" title="Tab – edycja całych brył" data-i18n="ui.modeObject" data-i18n-title="ui.modeObjectTitle">Obiekt</button>
+          <button id="mode-vertex" class="toggle" title="Tab – edycja punktów bryły" data-i18n="ui.modeVertex" data-i18n-title="ui.modeVertexTitle">Wierzchołki</button>
           <span id="transform-group" class="subgroup">
             <span class="sep"></span>
-            <button data-tool="translate" class="toggle active" title="W">Przesuń</button>
-            <button data-tool="rotate" class="toggle" title="E">Obróć</button>
-            <button data-tool="scale" class="toggle" title="R">Skaluj</button>
+            <button data-tool="translate" class="toggle active" title="W" data-i18n="ui.translate">Przesuń</button>
+            <button data-tool="rotate" class="toggle" title="E" data-i18n="ui.rotate">Obróć</button>
+            <button data-tool="scale" class="toggle" title="R" data-i18n="ui.scale">Skaluj</button>
           </span>
           <span class="sep"></span>
-          <button id="duplicate" title="Ctrl+D – kopia obok zaznaczonej bryły">Duplikuj</button>
-          <button id="delete" title="Del – usuń zaznaczoną bryłę">Usuń</button>
+          <button id="duplicate" title="Ctrl+D – kopia obok zaznaczonej bryły" data-i18n="ui.duplicate" data-i18n-title="ui.duplicateTitle">Duplikuj</button>
+          <button id="delete" title="Del – usuń zaznaczoną bryłę" data-i18n="ui.delete" data-i18n-title="ui.deleteTitle">Usuń</button>
         </div>
         <div class="group">
-          <span class="label">Modelowanie</span>
-          <button data-op="subtract" class="toggle" title="Wytnij jedną bryłę z drugiej (np. otwór)">Odejmij</button>
-          <button data-op="union" class="toggle" title="Połącz dwie nachodzące na siebie bryły w jedną">Połącz</button>
-          <button data-op="intersect" class="toggle" title="Zostaw tylko część wspólną dwóch brył">Część wspólna</button>
-          <button id="bridge" class="toggle" title="B – połącz dwie płaskie ściany nowymi ścianami">Most</button>
-          <button id="fillet" class="toggle" title="F – zaokrąglij / sfazuj wybrane ranty">Zaokrąglij</button>
+          <span class="label" data-i18n="ui.modeling">Modelowanie</span>
+          <button data-op="subtract" class="toggle" title="Wytnij jedną bryłę z drugiej (np. otwór)" data-i18n="boolean.subtract" data-i18n-title="ui.subtractTitle">Odejmij</button>
+          <button data-op="union" class="toggle" title="Połącz dwie nachodzące na siebie bryły w jedną" data-i18n="boolean.union" data-i18n-title="ui.unionTitle">Połącz</button>
+          <button data-op="intersect" class="toggle" title="Zostaw tylko część wspólną dwóch brył" data-i18n="boolean.intersect" data-i18n-title="ui.intersectTitle">Część wspólna</button>
+          <button id="bridge" class="toggle" title="B – połącz dwie płaskie ściany nowymi ścianami" data-i18n="ui.bridge" data-i18n-title="ui.bridgeTitle">Most</button>
+          <button id="fillet" class="toggle" title="F – zaokrąglij / sfazuj wybrane ranty" data-i18n="ui.fillet" data-i18n-title="ui.filletTitle">Zaokrąglij</button>
         </div>
         <div class="group">
-          <span class="label">Widok</span>
+          <span class="label" data-i18n="ui.view">Widok</span>
           <button id="view-3d" class="toggle active" title="P">3D</button>
-          <button id="view-top" class="toggle" title="T">Z góry</button>
-          <button id="measure" class="toggle" title="D – odległość między wierzchołkami">Miarka</button>
+          <button id="view-top" class="toggle" title="T" data-i18n="ui.viewTop">Z góry</button>
+          <button id="measure" class="toggle" title="D – odległość między wierzchołkami i rantami" data-i18n="ui.measure" data-i18n-title="ui.measureTitle">Miarka</button>
         </div>
         <div class="group right menu-group">
-          <button id="file-btn" class="toggle" aria-haspopup="true">Plik ▾</button>
+          <button id="file-btn" class="toggle" aria-haspopup="true" data-i18n="ui.file">Plik ▾</button>
           <div id="file-menu" class="popup popover menu" role="menu" hidden>
-            <button id="open" role="menuitem">Otwórz projekt…<kbd>Ctrl+O</kbd></button>
-            <button id="save" role="menuitem">Zapisz projekt<kbd>Ctrl+S</kbd></button>
+            <button id="open" role="menuitem"><span data-i18n="ui.open">Otwórz projekt…</span><kbd>Ctrl+O</kbd></button>
+            <button id="save" role="menuitem"><span data-i18n="ui.save">Zapisz projekt</span><kbd>Ctrl+S</kbd></button>
             <hr />
-            <button id="export-stl" role="menuitem">Eksport STL<small>jedna siatka – każdy slicer</small></button>
-            <button id="export-3mf" role="menuitem">Eksport 3MF<small>mm, osobne obiekty, nazwy i kolory</small></button>
+            <button id="export-stl" role="menuitem"><span data-i18n="ui.exportStl">Eksport STL</span><small data-i18n="ui.exportStlHint">jedna siatka – każdy slicer</small></button>
+            <button id="export-3mf" role="menuitem"><span data-i18n="ui.export3mf">Eksport 3MF</span><small data-i18n="ui.export3mfHint">mm, osobne obiekty, nazwy i kolory</small></button>
           </div>
           <input type="file" id="file-input" accept=".json" hidden />
         </div>
         <div class="group menu-group">
-          <button id="settings-btn" class="toggle" title="Ustawienia" aria-haspopup="true">⚙ Ustawienia</button>
-          <div id="settings-popup" class="popup popover" role="dialog" aria-label="Ustawienia" hidden>
-            <div class="popup-head"><b>Ustawienia</b></div>
+          <button id="settings-btn" class="toggle" title="Ustawienia" aria-haspopup="true" data-i18n="ui.settings" data-i18n-title="ui.settingsTitle">⚙ Ustawienia</button>
+          <div id="settings-popup" class="popup popover" role="dialog" aria-label="Ustawienia" data-i18n-aria="ui.settingsTitle" hidden>
+            <div class="popup-head"><b data-i18n="ui.settingsTitle">Ustawienia</b></div>
             <div class="popup-body">
-              <h3>Przyciąganie do siatki</h3>
-              <label class="check"><input type="checkbox" id="snap" checked /> Przyciągaj przy przesuwaniu brył i punktów</label>
+              <h3 data-i18n="ui.snapHeading">Przyciąganie do siatki</h3>
+              <label class="check"><input type="checkbox" id="snap" checked /> <span data-i18n="ui.snapLabel">Przyciągaj przy przesuwaniu brył i punktów</span></label>
               <div class="settings-row">
-                <span>Krok siatki</span>
+                <span data-i18n="ui.gridStep">Krok siatki</span>
                 <select id="snap-size">
                   <option value="0.5">0.5 mm</option>
                   <option value="1" selected>1 mm</option>
@@ -75,7 +75,14 @@
                   <option value="10">10 mm</option>
                 </select>
               </div>
-              <p class="muted small">Przytrzymaj Alt podczas przeciągania, żeby chwilowo wyłączyć przyciąganie. Obrót przyciąga co 15°.</p>
+              <p class="muted small" data-i18n="ui.snapHint">Przytrzymaj Alt podczas przeciągania, żeby chwilowo wyłączyć przyciąganie. Obrót przyciąga co 15°.</p>
+              <h3 data-i18n="ui.language">Język / Language</h3>
+              <div class="settings-row">
+                <select id="language">
+                  <option value="pl">Polski</option>
+                  <option value="en">English</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -83,87 +90,87 @@
       <main>
         <div id="viewport">
           <div id="fillet-panel" class="float-panel" hidden>
-            <div class="fp-title">Zaokrąglenie rantów</div>
+            <div class="fp-title" data-i18n="ui.filletPanelTitle">Zaokrąglenie rantów</div>
             <div class="btn-row seg" id="fillet-kind">
-              <button data-kind="round" class="active">Zaokrąglenie</button>
-              <button data-kind="chamfer">Faza</button>
+              <button data-kind="round" class="active" data-i18n="ui.filletRound">Zaokrąglenie</button>
+              <button data-kind="chamfer" data-i18n="ui.filletChamfer">Faza</button>
             </div>
             <div class="param-grid">
               <label id="fillet-r-label">Promień</label><input type="number" id="fillet-r" value="2" min="0.1" step="0.5" /><span>mm</span>
-              <label>Gładkość</label><input type="number" id="fillet-seg" value="8" min="2" max="32" step="1" /><span>segm.</span>
+              <label data-i18n="ui.smoothness">Gładkość</label><input type="number" id="fillet-seg" value="8" min="2" max="32" step="1" /><span data-i18n="ui.segmentsUnit">segm.</span>
             </div>
-            <p class="muted small" id="fillet-info">Kliknij rant bryły.</p>
-            <button id="fillet-apply" class="primary" disabled>Zastosuj (Enter)</button>
+            <p class="muted small" id="fillet-info"></p>
+            <button id="fillet-apply" class="primary" disabled data-i18n="ui.filletApply">Zastosuj (Enter)</button>
           </div>
         </div>
         <aside id="sidebar">
           <section>
-            <h2>Obiekty</h2>
+            <h2 data-i18n="ui.objects">Obiekty</h2>
             <ul id="outliner"></ul>
           </section>
           <section id="props">
-            <h2>Właściwości</h2>
-            <div id="props-body"><p class="muted">Nic nie zaznaczono</p></div>
+            <h2 data-i18n="ui.properties">Właściwości</h2>
+            <div id="props-body"></div>
           </section>
         </aside>
       </main>
       <footer id="statusbar">
-        <span id="status">Gotowy</span>
-        <button id="shortcuts-link" class="link" title="Skróty klawiszowe (?)">Skróty klawiszowe</button>
+        <span id="status"></span>
+        <button id="shortcuts-link" class="link" title="Skróty klawiszowe (?)" data-i18n="ui.shortcuts" data-i18n-title="ui.shortcutsTitle">Skróty klawiszowe</button>
       </footer>
-      <div id="shortcuts-popup" class="popup" role="dialog" aria-label="Skróty klawiszowe" hidden>
+      <div id="shortcuts-popup" class="popup" role="dialog" aria-label="Skróty klawiszowe" data-i18n-aria="ui.shortcuts" hidden>
         <div class="popup-head">
-          <b>Skróty klawiszowe</b>
-          <button id="shortcuts-close" class="link" title="Zamknij (Esc)">✕</button>
+          <b data-i18n="ui.shortcuts">Skróty klawiszowe</b>
+          <button id="shortcuts-close" class="link" title="Zamknij (Esc)" data-i18n-title="ui.close">✕</button>
         </div>
         <div class="popup-body">
           <section>
-            <h3>Mysz</h3>
+            <h3 data-i18n="ui.scMouse">Mysz</h3>
             <dl>
-              <dt>LPM</dt><dd>zaznacz, przeciągnij, wskaż</dd>
-              <dt>PPM</dt><dd>obrót widoku</dd>
-              <dt>ŚPM</dt><dd>przesuwanie widoku</dd>
-              <dt>Kółko</dt><dd>przybliżanie</dd>
+              <dt data-i18n="ui.scLmb">LPM</dt><dd data-i18n="ui.scLmbDo">zaznacz, przeciągnij, wskaż</dd>
+              <dt data-i18n="ui.scRmb">PPM</dt><dd data-i18n="ui.scRmbDo">obrót widoku</dd>
+              <dt data-i18n="ui.scMmb">ŚPM</dt><dd data-i18n="ui.scMmbDo">przesuwanie widoku</dd>
+              <dt data-i18n="ui.scWheel">Kółko</dt><dd data-i18n="ui.scWheelDo">przybliżanie</dd>
             </dl>
           </section>
           <section>
-            <h3>Ogólne</h3>
+            <h3 data-i18n="ui.scGeneral">Ogólne</h3>
             <dl>
-              <dt>Ctrl+Z / Ctrl+Y</dt><dd>cofnij / ponów</dd>
-              <dt>Ctrl+S / Ctrl+O</dt><dd>zapisz / otwórz projekt</dd>
-              <dt>Ctrl+D</dt><dd>duplikuj bryłę</dd>
-              <dt>Del</dt><dd>usuń bryłę</dd>
-              <dt>T / P</dt><dd>widok z góry / 3D</dd>
-              <dt>Esc</dt><dd>anuluj, cofnij krok, wyłącz narzędzie</dd>
-              <dt>?</dt><dd>to okno</dd>
+              <dt>Ctrl+Z / Ctrl+Y</dt><dd data-i18n="ui.scUndo">cofnij / ponów</dd>
+              <dt>Ctrl+S / Ctrl+O</dt><dd data-i18n="ui.scSaveOpen">zapisz / otwórz projekt</dd>
+              <dt>Ctrl+D</dt><dd data-i18n="ui.scDuplicate">duplikuj bryłę</dd>
+              <dt>Del</dt><dd data-i18n="ui.scDelete">usuń bryłę</dd>
+              <dt>T / P</dt><dd data-i18n="ui.scViews">widok z góry / 3D</dd>
+              <dt>Esc</dt><dd data-i18n="ui.scEsc">anuluj, cofnij krok, wyłącz narzędzie</dd>
+              <dt>?</dt><dd data-i18n="ui.scThis">to okno</dd>
             </dl>
           </section>
           <section>
-            <h3>Tryb obiektu</h3>
+            <h3 data-i18n="ui.scObjectMode">Tryb obiektu</h3>
             <dl>
-              <dt>Tab</dt><dd>przełącz na wierzchołki</dd>
-              <dt>W / E / R</dt><dd>przesuń / obróć / skaluj</dd>
-              <dt>Alt</dt><dd>(podczas przeciągania) bez przyciągania</dd>
+              <dt>Tab</dt><dd data-i18n="ui.scToVertex">przełącz na wierzchołki</dd>
+              <dt>W / E / R</dt><dd data-i18n="ui.scTransform">przesuń / obróć / skaluj</dd>
+              <dt>Alt</dt><dd data-i18n="ui.scAlt">(podczas przeciągania) bez przyciągania</dd>
             </dl>
           </section>
           <section>
-            <h3>Tryb wierzchołków</h3>
+            <h3 data-i18n="ui.scVertexMode">Tryb wierzchołków</h3>
             <dl>
-              <dt>Przeciągnij</dt><dd>przesuń punkt w poziomie</dd>
-              <dt>Shift + przeciągnij</dt><dd>tylko w pionie (Z)</dd>
-              <dt>Ctrl + klik</dt><dd>zaznacz kilka punktów</dd>
-              <dt>Ctrl+A</dt><dd>zaznacz wszystkie</dd>
-              <dt>2× klik</dt><dd>dodaj punkt na krawędzi / ścianie</dd>
-              <dt>M</dt><dd>symetria: wył. / X / Y / Z</dd>
+              <dt data-i18n="ui.scDrag">Przeciągnij</dt><dd data-i18n="ui.scDragDo">przesuń punkt w poziomie</dd>
+              <dt data-i18n="ui.scShiftDrag">Shift + przeciągnij</dt><dd data-i18n="ui.scShiftDragDo">tylko w pionie (Z)</dd>
+              <dt data-i18n="ui.scCtrlClick">Ctrl + klik</dt><dd data-i18n="ui.scCtrlClickDo">zaznacz kilka punktów</dd>
+              <dt>Ctrl+A</dt><dd data-i18n="ui.scSelectAll">zaznacz wszystkie</dd>
+              <dt data-i18n="ui.scDblClick">2× klik</dt><dd data-i18n="ui.scDblClickDo">dodaj punkt na krawędzi / ścianie</dd>
+              <dt>M</dt><dd data-i18n="ui.scMirror">symetria: wył. / X / Y / Z</dd>
             </dl>
           </section>
           <section>
-            <h3>Narzędzia</h3>
+            <h3 data-i18n="ui.scTools">Narzędzia</h3>
             <dl>
-              <dt>Odejmij, Połącz, Część wspólna</dt><dd>klik w bryłę A, potem w bryłę B (Shift – zachowaj bryłę tnącą)</dd>
-              <dt>B – Most</dt><dd>klik w ścianę A i B, Enter · ↑/↓ segmenty łuku · ←/→ obrót dopasowania</dd>
-              <dt>F – Zaokrąglij</dt><dd>klik w ranty, promień w panelu, Enter</dd>
-              <dt>D – Miarka</dt><dd>klik w dwa wierzchołki lub ranty; między rantami – najkrócej, prostopadle do obu (⊥)</dd>
+              <dt data-i18n="ui.scBoolean">Odejmij, Połącz, Część wspólna</dt><dd data-i18n="ui.scBooleanDo">klik w bryłę A, potem w bryłę B (Shift – zachowaj bryłę tnącą)</dd>
+              <dt data-i18n="ui.scBridge">B – Most</dt><dd data-i18n="ui.scBridgeDo">klik w ścianę A i B, Enter · ↑/↓ segmenty łuku · ←/→ obrót dopasowania</dd>
+              <dt data-i18n="ui.scFillet">F – Zaokrąglij</dt><dd data-i18n="ui.scFilletDo">klik w ranty, promień w panelu, Enter</dd>
+              <dt data-i18n="ui.scMeasure">D – Miarka</dt><dd data-i18n="ui.scMeasureDo">klik w dwa wierzchołki lub ranty; między rantami – najkrócej, prostopadle do obu (⊥)</dd>
             </dl>
           </section>
         </div>

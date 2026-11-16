@@ -5,6 +5,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import type { Model, ModelMesh } from './model';
 import type { Viewport } from './viewport';
 import { applyShapes, type RawMesh } from './csg';
+import { t } from './i18n';
 
 /**
  * Zaokrąglanie i fazowanie rantów.
@@ -98,7 +99,7 @@ export class FilletTool {
   setActive(on: boolean) {
     this.active = on;
     this.clear();
-    if (on) this.message('Zaokrąglenie: kliknij rant (krawędź) bryły – kolejne kliknięcia dodają / usuwają ranty');
+    if (on) this.message(t.fillet.start);
   }
 
   clear() {
@@ -164,7 +165,7 @@ export class FilletTool {
   private async compute(): Promise<{ g: THREE.BufferGeometry | null; tooBig: number }> {
     const target = this.target!;
     const r = this.radius;
-    if (!(r > 0)) throw new Error('promień musi być większy od zera');
+    if (!(r > 0)) throw new Error(t.fillet.radiusPositive);
     const segs = this.kind === 'chamfer' ? 1 : Math.max(2, Math.round(this.segments) || 2);
     const cut: RawMesh[] = [];
     const add: RawMesh[] = [];
@@ -178,7 +179,7 @@ export class FilletTool {
   }
 
   private tooBigText(n: number) {
-    return `przy ${n} rancie(ach) ${this.kind === 'round' ? 'promień' : 'szerokość'} jest większy niż sąsiednie ściany – kształt może być nieoczekiwany`;
+    return t.fillet.tooBig(n, this.kind === 'round');
   }
 
   /** Wykonuje zaokrąglenie / fazowanie zaznaczonych rantów. */
@@ -187,12 +188,12 @@ export class FilletTool {
     const target = this.target;
     const r = this.radius;
     this.busy = true;
-    this.message('Zaokrąglenie: liczę…');
+    this.message(t.fillet.computing);
     try {
       const { g, tooBig } = await this.compute();
       if (!this.model.objects.includes(target)) return false;
       if (!g) {
-        this.message('Zaokrąglenie: wynik byłby pusty – nic nie zmieniono');
+        this.message(t.fillet.empty);
         return false;
       }
       this.hidePreview();
@@ -202,13 +203,10 @@ export class FilletTool {
       const n = this.selected.size;
       this.clear();
       this.model.select(target);
-      this.message(
-        `${this.kind === 'round' ? 'Zaokrąglono' : 'Sfazowano'} ${n} rant(y) (${this.kind === 'round' ? 'promień' : 'szerokość'} ${r} mm)` +
-        (tooBig ? ` – UWAGA: ${this.tooBigText(tooBig)}` : '') + ' · Ctrl+Z cofa',
-      );
+      this.message(t.fillet.done(this.kind === 'round', n, r, tooBig ? this.tooBigText(tooBig) : null));
       return true;
     } catch (err) {
-      this.message(`Zaokrąglenie nie powiodło się: ${(err as Error).message}`);
+      this.message(t.fillet.failed((err as Error).message));
       return false;
     } finally {
       this.busy = false;
@@ -237,17 +235,17 @@ export class FilletTool {
         }
         if (!g) {
           this.hidePreview();
-          this.previewInfo = { text: 'Wynik byłby pusty.', warn: true };
+          this.previewInfo = { text: t.fillet.previewEmpty, warn: true };
         } else {
           this.showPreview(target, g);
           this.previewInfo = tooBig
-            ? { text: `Podgląd – UWAGA: ${this.tooBigText(tooBig)}.`, warn: true }
-            : { text: 'Podgląd wyniku. Enter – zastosuj.', warn: false };
+            ? { text: t.fillet.previewWarn(this.tooBigText(tooBig)), warn: true }
+            : { text: t.fillet.previewOk, warn: false };
         }
       } catch (err) {
         if (seq !== this.previewSeq) return;
         this.hidePreview();
-        this.previewInfo = { text: `Nie da się policzyć: ${(err as Error).message}`, warn: true };
+        this.previewInfo = { text: t.fillet.previewError((err as Error).message), warn: true };
       }
       this.redraw();
       this.emit();

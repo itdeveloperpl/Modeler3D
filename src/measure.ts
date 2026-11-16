@@ -6,6 +6,7 @@ import type { Model, ModelMesh } from './model';
 import type { Viewport } from './viewport';
 import { dotTexture } from './vertexEditor';
 import { findChains, type Chain } from './fillet';
+import { t } from './i18n';
 
 const VERTEX_NEAR = 12; // px – narożnik tak blisko kursora ma pierwszeństwo przed rantem
 const VERTEX_ON_EDGE = 4; // px – punkt w środku gładkiego rantu (np. na okręgu walca) – tylko przy samym kursorze
@@ -131,7 +132,7 @@ export class MeasureTool {
       this.start = null;
       const m = this.measure(this.result.a, this.result.b);
       const kinds = `${kindName(this.result.a)} ↔ ${kindName(this.result.b)}`;
-      this.listeners.forEach((fn) => fn(`Miarka (${kinds}${m.perpendicular ? ', prostopadle' : ''}): ${describe(m.p, m.q)}`));
+      this.listeners.forEach((fn) => fn(t.measure.result(kinds, m.perpendicular, describe(m.p, m.q))));
     }
     return true;
   }
@@ -374,7 +375,7 @@ function sameRef(a: Ref, b: Ref) {
 }
 
 function kindName(r: Ref) {
-  return r.kind === 'vertex' ? 'wierzchołek' : 'rant';
+  return r.kind === 'vertex' ? t.measure.vertex : t.measure.edge;
 }
 
 /** Najbliższe punkty dwóch odcinków (Ericson, "Real-Time Collision Detection"). */

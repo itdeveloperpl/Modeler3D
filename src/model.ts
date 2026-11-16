@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { createPrimitiveGeometry, PRIMITIVE_NAMES, type PrimitiveKind } from './primitives';
+import { createPrimitiveGeometry, type PrimitiveKind } from './primitives';
+import { t } from './i18n';
 
 const PALETTE = [0x4f9dff, 0xff9f40, 0x6cdc5c, 0xe36cff, 0xffd84f, 0x4fe3d6, 0xff6b6b];
 
@@ -56,7 +57,7 @@ export class Model {
     const sameKind = this.objects.filter((o) => o.userData.kind === kind).length;
     const mesh = this.createMesh({
       id: this.nextId++,
-      name: `${PRIMITIVE_NAMES[kind]} ${sameKind + 1}`,
+      name: `${t.primitive[kind]} ${sameKind + 1}`,
       kind,
       color: PALETTE[this.objects.length % PALETTE.length],
       position: [at?.x ?? 0, at?.y ?? 0, 0],

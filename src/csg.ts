@@ -3,6 +3,7 @@ import Module, { type ManifoldToplevel } from 'manifold-3d';
 import wasmUrl from 'manifold-3d/manifold.wasm?url';
 import { cleanGeometry } from './primitives';
 import type { ModelMesh } from './model';
+import { t } from './i18n';
 
 /**
  * Operacje logiczne na bryłach (CSG) liczone biblioteką Manifold (WebAssembly).
@@ -11,12 +12,6 @@ import type { ModelMesh } from './model';
  */
 
 export type BooleanOp = 'subtract' | 'union' | 'intersect';
-
-export const BOOLEAN_NAMES: Record<BooleanOp, string> = {
-  subtract: 'Odejmij',
-  union: 'Połącz',
-  intersect: 'Część wspólna',
-};
 
 let wasm: Promise<ManifoldToplevel> | null = null;
 function manifold(): Promise<ManifoldToplevel> {
@@ -52,7 +47,7 @@ function toManifold(lib: ManifoldToplevel, mesh: ModelMesh) {
   try {
     return new lib.Manifold(m);
   } catch {
-    throw new Error(`„${mesh.name}” nie jest zamkniętą bryłą (np. ściany przecinają się po edycji punktów)`);
+    throw new Error(t.misc.notClosedSolid(mesh.name));
   }
 }
 

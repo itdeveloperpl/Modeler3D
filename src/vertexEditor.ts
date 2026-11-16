@@ -6,6 +6,7 @@ import {
   symmetrize, MIRROR_TOLERANCE, type MirrorAxis, type MirrorSettings,
 } from './mirror';
 import { cleanGeometry } from './primitives';
+import { t } from './i18n';
 
 const COLOR_NORMAL = new THREE.Color(0xe8ecf2);
 const COLOR_HOVER = new THREE.Color(0xffe14f);
@@ -148,8 +149,7 @@ export class VertexEditor {
     if (this.mirror && this.target && this.unpairedCount === 0 && !this.topologySymmetric) {
       const added = this.symmetrizeMesh(1);
       if (added !== null) {
-        this.message(`Siatkę przygotowano do symetrii ${this.mirror.axis.toUpperCase()}` +
-          (added > 0 ? ` – dodano ${added} punkt(y) na płaszczyźnie lustra` : '') + ' (Ctrl+Z cofa)');
+        this.message(t.vertex.meshPrepared(this.mirror.axis.toUpperCase(), added));
       }
     }
     this.emit();
@@ -166,7 +166,7 @@ export class VertexEditor {
     const before = g.getAttribute('position').count;
     const res = symmetrize(g.getAttribute('position'), g.getIndex()!.array, this.mirror, keep);
     if (!res) {
-      this.message('Po tej stronie lustra nie ma żadnej części bryły');
+      this.message(t.vertex.nothingOnSide);
       return null;
     }
     this.model.checkpoint();

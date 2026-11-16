@@ -8,7 +8,10 @@ import { FilletTool } from './fillet';
 import { Sidebar } from './ui';
 import { export3MF, exportSTL, openProject, saveProject } from './io';
 import type { PrimitiveKind } from './primitives';
-import { BOOLEAN_NAMES, booleanOp, boxesOverlap, preloadCSG, type BooleanOp } from './csg';
+import { booleanOp, boxesOverlap, preloadCSG, type BooleanOp } from './csg';
+import { lang, onLanguageChange, setLanguage, t, translatePage, type Lang } from './i18n';
+
+translatePage();
 
 type EditMode = 'object' | 'vertex';
 type Tool = 'translate' | 'rotate' | 'scale';
@@ -41,11 +44,11 @@ let opHover: ModelMesh | null = null;
 function startBoolean(op: BooleanOp) {
   if (pendingOp?.op === op) {
     cancelBoolean(); // drugi klik w to samo narzędzie = anuluj
-    status.textContent = 'Anulowano';
+    status.textContent = t.status.cancelled;
     return;
   }
   if (model.objects.length < 2) {
-    status.textContent = 'Potrzebne są dwie bryły nachodzące na siebie';
+    status.textContent = t.status.needTwo;
     return;
   }
   if (measure.active) setMeasure(false);
@@ -60,15 +63,10 @@ function startBoolean(op: BooleanOp) {
 }
 
 function pendingOpPrompt() {
-  if (!pendingOp) return 'Gotowy';
-  const name = BOOLEAN_NAMES[pendingOp.op];
-  if (!pendingOp.target) {
-    const what = pendingOp.op === 'subtract' ? 'bryłę, z której chcesz wycinać' : 'pierwszą bryłę';
-    return `${name}: kliknij ${what} · Esc – anuluj`;
-  }
-  const verb = pendingOp.op === 'subtract' ? 'wyciąć z' : pendingOp.op === 'union' ? 'połączyć z' : 'przeciąć z';
-  return `${name}: kliknij bryłę, którą chcesz ${verb} „${pendingOp.target.name}”` +
-    (pendingOp.op === 'subtract' ? ' (Shift+klik – zachowaj bryłę tnącą)' : '') + ' · Esc – anuluj';
+  if (!pendingOp) return t.status.ready;
+  const name = t.boolean[pendingOp.op];
+  if (!pendingOp.target) return t.status.opPickFirst(name, pendingOp.op);
+  return t.status.opPickSecond(name, pendingOp.op, pendingOp.target.name);
 }
 
 function cancelBoolean() {
@@ -90,22 +88,22 @@ async function applyBoolean(tool: ModelMesh, keepTool: boolean) {
   const target = maybeTarget!;
   cancelBoolean();
   if (!boxesOverlap(target, tool)) {
-    status.textContent = 'Bryły się nie stykają – przesuń je tak, by na siebie nachodziły';
+    status.textContent = t.status.notTouching;
     return;
   }
   const t0 = performance.now();
-  status.textContent = `${BOOLEAN_NAMES[op]}: liczę…`;
+  status.textContent = t.status.computing(t.boolean[op]);
   let geometry: THREE.BufferGeometry | null;
   try {
     geometry = await booleanOp(op, target, tool);
   } catch (err) {
     console.error(err);
-    status.textContent = `Operacja nie powiodła się: ${(err as Error).message}`;
+    status.textContent = t.status.opFailed((err as Error).message);
     return;
   }
   if (!model.objects.includes(target) || !model.objects.includes(tool)) return; // scena zmieniła się w trakcie liczenia
   if (!geometry) {
-    status.textContent = 'Wynik operacji jest pusty – nic nie zmieniono';
+    status.textContent = t.status.opEmpty;
     return;
   }
   model.checkpoint();
@@ -113,7 +111,7 @@ async function applyBoolean(tool: ModelMesh, keepTool: boolean) {
   if (!keepTool || op !== 'subtract') model.removeSilently(tool);
   model.select(target);
   const tris = geometry.getIndex()!.count / 3;
-  status.textContent = `${BOOLEAN_NAMES[op]}: gotowe (${tris} trójkątów, ${Math.round(performance.now() - t0)} ms)`;
+  status.textContent = t.status.opDone(t.boolean[op], tris, Math.round(performance.now() - t0));
 }
 
 // ---------- synchronizacja stanu ----------
@@ -168,7 +166,7 @@ function setBridge(on: boolean) {
   canvas.style.cursor = on ? 'crosshair' : '';
   if (!on) {
     stickyUntil = 0;
-    status.textContent = 'Gotowy';
+    status.textContent = t.status.ready;
   }
   sync();
 }
@@ -192,7 +190,7 @@ function setFillet(on: boolean) {
   canvas.style.cursor = on ? 'crosshair' : '';
   if (!on) {
     stickyUntil = 0;
-    status.textContent = 'Gotowy';
+    status.textContent = t.status.ready;
   }
   sync();
 }
@@ -202,11 +200,11 @@ function syncFilletPanel() {
   const info = $('fillet-info');
   const pv = fillet.previewInfo;
   info.textContent = n === 0
-    ? 'Kliknij rant bryły. Kolejne kliknięcia dodają lub usuwają ranty.'
-    : `Wybrane ranty: ${n} (${fillet.targetName}). ${pv ? pv.text : 'Liczę podgląd…'} Esc – odznacz.`;
+    ? t.status.filletNone
+    : t.status.filletSelected(n, fillet.targetName ?? '', pv ? pv.text : null);
   info.classList.toggle('warn-text', !!pv?.warn && n > 0);
   $<HTMLButtonElement>('fillet-apply').disabled = n === 0;
-  $('fillet-r-label').textContent = fillet.kind === 'round' ? 'Promień' : 'Szerokość';
+  $('fillet-r-label').textContent = fillet.kind === 'round' ? t.ui.radius : t.ui.width;
   filletSeg.disabled = fillet.kind === 'chamfer';
   document.querySelectorAll<HTMLButtonElement>('#fillet-kind button').forEach((b) => b.classList.toggle('active', b.dataset.kind === fillet.kind));
 }
@@ -247,16 +245,9 @@ function duplicate(src: ModelMesh, count = 1, step?: THREE.Vector3) {
     return b.min.x < -BED.x / 2 || b.max.x > BED.x / 2 || b.min.y < -BED.y / 2 || b.max.y > BED.y / 2;
   }).length;
   stickyStatus(
-    (copies.length === 1 ? `Utworzono kopię: ${copies[0].name}` : `Utworzono ${copies.length} ${plural(copies.length, 'kopię', 'kopie', 'kopii')}`) +
-    (outside ? ` – UWAGA: ${outside} poza stołem ${BED.x}×${BED.y} mm` : ''),
+    (copies.length === 1 ? t.status.copyCreated(copies[0].name) : t.status.copiesCreated(copies.length)) +
+    (outside ? t.status.outsideBed(outside, BED.x, BED.y) : ''),
   );
-}
-
-/** Odmiana polska: 1 kopię, 2–4 kopie, 5+ kopii (ale 22–24 kopie, 12–14 kopii). */
-function plural(n: number, one: string, few: string, many: string) {
-  if (n === 1) return one;
-  const d = n % 10, t = n % 100;
-  return d >= 2 && d <= 4 && (t < 12 || t > 14) ? few : many;
 }
 
 // ---------- miarka ----------
@@ -269,15 +260,15 @@ function setMeasure(on: boolean) {
   $('measure').classList.toggle('active', on);
   if (!on) canvas.style.cursor = '';
   status.textContent = on
-    ? 'Miarka: kliknij wierzchołek początkowy, potem końcowy · Esc – anuluj / wyłącz'
-    : 'Gotowy';
+    ? t.status.measureStart
+    : t.status.ready;
   stickyUntil = on ? performance.now() + 3000 : 0;
   sync();
 }
 
 function setMode(m: EditMode) {
   if (m === 'vertex' && !model.selected) {
-    status.textContent = 'Najpierw zaznacz bryłę, której punkty chcesz edytować';
+    status.textContent = t.status.selectFirstVertex;
     return;
   }
   mode = m;
@@ -402,7 +393,7 @@ canvas.addEventListener('pointerup', (e) => {
     } else if (mesh && mesh !== pendingOp.target) void applyBoolean(mesh, e.shiftKey);
     else {
       cancelBoolean();
-      status.textContent = 'Anulowano';
+      status.textContent = t.status.cancelled;
     }
     return;
   }
@@ -419,7 +410,7 @@ canvas.addEventListener('pointerup', (e) => {
 // podwójne kliknięcie w trybie wierzchołków: nowy punkt na krawędzi lub ścianie
 canvas.addEventListener('dblclick', (e) => {
   if (mode !== 'vertex' || measure.active || bridge.active || fillet.active) return;
-  if (editor.insertAt(e)) status.textContent = 'Dodano punkt – możesz go od razu przeciągnąć';
+  if (editor.insertAt(e)) status.textContent = t.status.pointAdded;
 });
 
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -429,12 +420,12 @@ function showCursorPosition(e: PointerEvent) {
   if (performance.now() < stickyUntil) return;
   const p = view.rayFromEvent(e).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Vector3());
   const parts: string[] = pendingOp ? [pendingOpPrompt()] : [];
-  if (p) parts.push(`Stół: X ${p.x.toFixed(1)}  Y ${p.y.toFixed(1)} mm`);
+  if (p) parts.push(t.status.bed(p.x.toFixed(1), p.y.toFixed(1)));
   if (mode === 'vertex' && editor.dragging) {
     const w = editor.selectedWorld();
-    if (w) parts.push(`Punkt: X ${w.x.toFixed(2)}  Y ${w.y.toFixed(2)}  Z ${w.z.toFixed(2)}`);
+    if (w) parts.push(t.status.point(w.x.toFixed(2), w.y.toFixed(2), w.z.toFixed(2)));
   }
-  status.textContent = parts.join('   |   ') || 'Gotowy';
+  status.textContent = parts.join('   |   ') || t.status.ready;
 }
 
 // ---------- pasek narzędzi ----------
@@ -467,7 +458,7 @@ $('bridge').onclick = () => setBridge(!bridge.active);
 $('fillet').onclick = () => setFillet(!fillet.active);
 $('duplicate').onclick = () => {
   if (model.selected) duplicate(model.selected);
-  else status.textContent = 'Najpierw zaznacz bryłę do skopiowania';
+  else status.textContent = t.status.selectFirstCopy;
 };
 $('snap').onchange = applySnap;
 $('snap-size').onchange = applySnap;
@@ -475,7 +466,7 @@ $('undo').onclick = () => model.undo();
 $('redo').onclick = () => model.redo();
 $('save').onclick = () => {
   saveProject(model);
-  stickyStatus('Zapisano projekt.json (folder Pobrane)');
+  stickyStatus(t.status.saved(t.misc.projectFile));
 };
 $('open').onclick = () => $('file-input').click();
 $('file-input').onchange = async (e) => {
@@ -486,20 +477,19 @@ $('file-input').onchange = async (e) => {
   try {
     setMode('object');
     await openProject(model, file);
-    status.textContent = `Wczytano ${file.name}`;
+    status.textContent = t.status.loaded(file.name);
   } catch (err) {
-    status.textContent = `Błąd wczytywania: ${(err as Error).message}`;
+    status.textContent = t.status.loadError((err as Error).message);
   }
 };
 function runExport(format: 'stl' | '3mf') {
   if (model.objects.length === 0) {
-    status.textContent = 'Brak brył do eksportu';
+    status.textContent = t.status.nothingToExport;
     return;
   }
   const below = model.objects.some((o) => new THREE.Box3().setFromObject(o).min.z < -0.01);
   const n = format === 'stl' ? exportSTL(model) : export3MF(model);
-  status.textContent = `Wyeksportowano ${n} brył(y) do model.${format}` +
-    (below ? ' – UWAGA: część bryły jest poniżej stołu (użyj „Połóż na stole”)' : '');
+  status.textContent = t.status.exported(n, `model.${format}`) + (below ? t.status.belowBed : '');
 }
 $('export-stl').onclick = () => runExport('stl');
 $('export-3mf').onclick = () => runExport('3mf');
@@ -560,8 +550,8 @@ document.addEventListener('pointerdown', (e) => {
 // ---------- klawiatura ----------
 
 window.addEventListener('keydown', (e) => {
-  const t = e.target as HTMLElement;
-  if (t.tagName === 'INPUT' || t.tagName === 'SELECT') return;
+  const el = e.target as HTMLElement;
+  if (el.tagName === 'INPUT' || el.tagName === 'SELECT') return;
   const ctrl = e.ctrlKey || e.metaKey;
   const key = e.key.toLowerCase();
 
@@ -577,7 +567,7 @@ window.addEventListener('keydown', (e) => {
   if (ctrl && key === 's') {
     e.preventDefault(); // zamiast "zapisz stronę" przeglądarki
     saveProject(model);
-    stickyStatus('Zapisano projekt.json (folder Pobrane)');
+    stickyStatus(t.status.saved(t.misc.projectFile));
     return;
   }
   if (ctrl && key === 'o') {
@@ -655,7 +645,7 @@ window.addEventListener('keydown', (e) => {
         if (!measure.cancel()) setMeasure(false);
       } else if (pendingOp) {
         cancelBoolean();
-        status.textContent = 'Anulowano';
+        status.textContent = t.status.cancelled;
       } else if (mode === 'vertex') editor.clearSelection();
       else model.select(null);
       break;
@@ -666,6 +656,21 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+// ---------- język ----------
+
+const langSelect = $<HTMLSelectElement>('language');
+langSelect.value = lang;
+langSelect.onchange = () => setLanguage(langSelect.value as Lang);
+onLanguageChange(() => {
+  langSelect.value = lang;
+  view.setView(view.mode); // napis z nazwą widoku
+  syncFilletPanel();
+  sidebar.rebuild();
+  // komunikaty aktywnych narzędzi wyświetlą się w nowym języku przy następnym kroku
+  if (pendingOp) status.textContent = pendingOpPrompt();
+  else if (!measure.active && !bridge.active && !fillet.active) status.textContent = t.status.ready;
+});
+
 // ---------- start ----------
 
 setTool(tool);
@@ -674,6 +679,7 @@ model.addPrimitive('box');
 // pierwsza bryła nie powinna dać się "cofnąć" do pustej sceny przy starcie
 model.clearHistory();
 sync();
+status.textContent = t.status.ready;
 
 // dostęp z konsoli przeglądarki (tylko w trybie deweloperskim)
 if (import.meta.env.DEV) Object.assign(window, { app: { model, view, editor, measure, bridge, fillet } });
