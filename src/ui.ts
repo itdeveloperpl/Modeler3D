@@ -1,0 +1,416 @@
+import * as THREE from 'three';
+import { dropToPlate, objectSize, type Model, type ModelMesh } from './model';
+import type { VertexEditor } from './vertexEditor';
+
+type Axis = 'x' | 'y' | 'z';
+const AXES: Axis[] = ['x', 'y', 'z'];
+
+const fmt = (v: number, digits = 2) => {
+  const r = Number(v.toFixed(digits));
+  return Object.is(r, -0) ? '0' : String(r);
+};
+
+/** Lista obiektów i panel właściwości. */
+export class Sidebar {
+  private outliner = document.getElementById('outliner') as HTMLUListElement;
+  private body = document.getElementById('props-body') as HTMLDivElement;
+  private builtFor = '';
+  private inputs = new Map<string, HTMLInputElement>();
+
+  constructor(
+    private model: Model,
+    private editor: VertexEditor,
+    private getMode: () => 'object' | 'vertex',
+    private actions: {
+      duplicate(m: ModelMesh, count?: number, step?: THREE.Vector3): void;
+    },
+  ) {
+    // Enter zatwierdza i opuszcza pole (wtedy Ctrl+Z cofa zmianę bryły, a nie tekst w polu),
+    // Esc przywraca bieżącą wartość
+    document.getElementById('sidebar')!.addEventListener('keydown', (e) => {
+      const el = e.target as HTMLElement;
+      if (el.tagName !== 'INPUT') return;
+      if (e.key === 'Enter') el.blur();
+      if (e.key === 'Escape') {
+        el.blur();
+        this.updateValues();
+      }
+    });
+  }
+
+  refresh() {
+    this.renderOutliner();
+    this.renderProps();
+  }
+
+  private renderOutliner() {
+    this.outliner.innerHTML = '';
+    if (this.model.objects.length === 0) {
+      this.outliner.innerHTML = '<li class="muted" style="cursor:default">Brak – dodaj bryłę z paska u góry</li>';
+      return;
+    }
+    for (const o of this.model.objects) {
+      const li = document.createElement('li');
+      const s = objectSize(o);
+      li.innerHTML = `<span></span><span class="dim">${fmt(s.x, 1)}×${fmt(s.y, 1)}×${fmt(s.z, 1)}</span>`;
+      li.firstElementChild!.textContent = o.name;
+      if (o === this.model.selected) li.classList.add('selected');
+      li.onclick = () => this.model.select(o);
+      this.outliner.appendChild(li);
+    }
+  }
+
+  private renderProps() {
+    const sel = this.model.selected;
+    const mode = this.getMode();
+    const key = sel
+      ? `${sel.uuid}:${mode}:${mode === 'vertex' ? `${this.editor.selection.size > 0}:${this.editor.mirror?.axis}` : ''}`
+      : 'none';
+    if (key !== this.builtFor) {
+      this.builtFor = key;
+      this.inputs.clear();
+      this.body.innerHTML = '';
+      if (!sel) this.body.innerHTML = '<p class="muted">Nic nie zaznaczono</p>';
+      else if (mode === 'object') this.buildObjectProps(sel);
+      else this.buildVertexProps();
+    }
+    this.updateValues();
+  }
+
+  // ---------- tryb obiektu ----------
+
+  private buildObjectProps(sel: ModelMesh) {
+    const name = document.createElement('input');
+    name.className = 'name-input';
+    name.value = sel.name;
+    name.onchange = () => {
+      this.model.checkpoint();
+      sel.name = name.value.trim() || sel.name;
+      this.model.emit();
+    };
+    this.body.appendChild(name);
+
+    const color = document.createElement('div');
+    color.className = 'color-row';
+    color.innerHTML = '<span>Kolor</span>';
+    const ci = document.createElement('input');
+    ci.type = 'color';
+    ci.value = '#' + sel.material.color.getHexString();
+    ci.onchange = () => {
+      this.model.checkpoint();
+      sel.material.color.set(ci.value);
+      this.model.emit();
+    };
+    color.appendChild(ci);
+    this.body.appendChild(color);
+
+    this.body.appendChild(axisHeader());
+    this.row('Pozycja', 'pos', (a, v) => { sel.position[a] = v; });
+    this.row('Obrót °', 'rot', (a, v) => { sel.rotation[a] = THREE.MathUtils.degToRad(v); });
+    this.row('Wymiar', 'size', (a, v) => {
+      if (v <= 0) return;
+      const base = sel.geometry.boundingBox!.getSize(new THREE.Vector3())[a];
+      if (base > 1e-6) sel.scale[a] = v / base;
+    });
+    this.buildRoundProps(sel);
+
+    const btns = document.createElement('div');
+    btns.className = 'btn-row';
+    btns.append(
+      button('Połóż na stole', () => { this.model.checkpoint(); dropToPlate(sel); this.model.emit(); }),
+    );
+    this.body.appendChild(btns);
+    this.buildArrayProps(sel);
+  }
+
+  /** Powielanie: wiele kopii w rzędzie wzdłuż X lub Y, z zadaną przerwą między bryłami. */
+  private buildArrayProps(sel: ModelMesh) {
+    const box = document.createElement('div');
+    box.className = 'ops';
+    box.innerHTML = '<h3>Powiel w rzędzie</h3>';
+    const grid = document.createElement('div');
+    grid.className = 'param-grid';
+
+    const num = (label: string, value: string, unit: string, min: string, step: string) => {
+      const l = document.createElement('label');
+      l.textContent = label;
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.value = value;
+      input.min = min;
+      input.step = step;
+      const u = document.createElement('span');
+      u.textContent = unit;
+      grid.append(l, input, u);
+      return input;
+    };
+    const count = num('Kopie', this.arrayState.count, 'szt.', '1', '1');
+    const gap = num('Przerwa', this.arrayState.gap, 'mm', '0', '1');
+    count.oninput = () => (this.arrayState.count = count.value);
+    gap.oninput = () => (this.arrayState.gap = gap.value);
+
+    const dirLabel = document.createElement('label');
+    dirLabel.textContent = 'Kierunek';
+    const dirs = document.createElement('div');
+    dirs.className = 'btn-row seg';
+    dirs.style.margin = '0';
+    for (const d of ['x', 'y'] as const) {
+      const b = button(d.toUpperCase(), () => {
+        this.arrayState.dir = d;
+        dirs.querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
+      });
+      b.classList.toggle('active', this.arrayState.dir === d);
+      dirs.appendChild(b);
+    }
+    grid.append(dirLabel, dirs, document.createElement('span'));
+    box.appendChild(grid);
+
+    const go = button('Utwórz kopie', () => {
+      const n = Math.floor(parseFloat(count.value));
+      const g = parseFloat(gap.value);
+      if (!(n >= 1) || !(g >= 0)) return;
+      // krok = rozmiar bryły w danym kierunku + przerwa, więc kopie nigdy na siebie nie nachodzą
+      sel.updateMatrixWorld(true);
+      const size = new THREE.Box3().setFromObject(sel, true).getSize(new THREE.Vector3());
+      const d = this.arrayState.dir;
+      const step = new THREE.Vector3(d === 'x' ? size.x + g : 0, d === 'y' ? size.y + g : 0, 0);
+      this.actions.duplicate(sel, Math.min(n, 100), step);
+    });
+    go.style.marginTop = '8px';
+    box.appendChild(go);
+    this.body.appendChild(box);
+  }
+
+  /** Ostatnie ustawienia powielania (zostają przy przełączaniu brył). */
+  private arrayState = { count: '3', gap: '5', dir: 'x' as 'x' | 'y' };
+
+  // ---------- tryb wierzchołków ----------
+
+  private buildVertexProps() {
+    const info = document.createElement('p');
+    info.className = 'muted';
+    info.dataset.role = 'vinfo';
+    info.style.marginBottom = '8px';
+    this.body.appendChild(info);
+    if (this.editor.selection.size > 0) {
+      this.body.appendChild(axisHeader());
+      this.row('Punkt', 'vtx', (a, v) => this.editor.setSelectedAxis(a, v), true);
+    }
+    const btns = document.createElement('div');
+    btns.className = 'btn-row';
+    btns.append(
+      button('Zaznacz wszystkie', () => this.editor.selectAll()),
+      button('Odznacz', () => this.editor.clearSelection()),
+    );
+    this.body.appendChild(btns);
+    this.buildMirrorProps();
+  }
+
+  /** Symetria: wybór osi lustra i położenia płaszczyzny. */
+  private buildMirrorProps() {
+    const box = document.createElement('div');
+    box.className = 'ops';
+    box.innerHTML = '<h3>Symetria (lustro)</h3>';
+    const axes = document.createElement('div');
+    axes.className = 'btn-row seg';
+    const current = this.editor.mirror?.axis ?? null;
+    for (const [label, axis] of [['Wył.', null], ['X', 'x'], ['Y', 'y'], ['Z', 'z']] as const) {
+      const b = button(label, () => this.editor.setMirror(axis));
+      b.classList.toggle('active', current === axis);
+      b.title = axis ? `Lustro prostopadłe do osi ${label} bryły` : 'Bez symetrii';
+      axes.appendChild(b);
+    }
+    box.appendChild(axes);
+
+    if (current) {
+      const row = document.createElement('div');
+      row.className = 'mirror-row';
+      row.innerHTML = `<span>Płaszczyzna ${current.toUpperCase()} =</span>`;
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = '1';
+      input.onchange = () => {
+        const v = parseFloat(input.value);
+        if (Number.isFinite(v)) this.editor.setMirror(current, v);
+        else this.updateValues();
+      };
+      this.inputs.set('mirror', input);
+      row.append(input, document.createTextNode('mm'));
+      row.appendChild(button('Środek', () => {
+        const g = this.model.selected!.geometry;
+        g.computeBoundingBox();
+        this.editor.setMirror(current, g.boundingBox!.getCenter(new THREE.Vector3())[current]);
+      }));
+      box.appendChild(row);
+      const warn = document.createElement('p');
+      warn.className = 'muted small';
+      warn.dataset.role = 'mirrorinfo';
+      box.appendChild(warn);
+    } else {
+      const hint = document.createElement('p');
+      hint.className = 'muted small';
+      hint.textContent = 'Wybierz oś – zmiany punktów po jednej stronie powtórzą się w lustrze po drugiej. Klawisz M przełącza.';
+      box.appendChild(hint);
+    }
+    this.body.appendChild(box);
+  }
+
+  /**
+   * Walec, stożek, kula: wymiary przez promień / średnicę i wysokość.
+   * Zmiana działa przez skalę, więc zachowuje wcześniejsze zmiany kształtu (punkty, wycięcia).
+   */
+  private buildRoundProps(sel: ModelMesh) {
+    const kind = sel.userData.kind as string;
+    if (!ROUND_KINDS[kind]) return;
+    const box = document.createElement('div');
+    box.className = 'ops';
+    box.innerHTML = `<h3>${ROUND_KINDS[kind]}</h3>`;
+    const grid = document.createElement('div');
+    grid.className = 'param-grid';
+
+    const base = () => {
+      sel.geometry.computeBoundingBox();
+      return sel.geometry.boundingBox!.getSize(new THREE.Vector3());
+    };
+    const setRadius = (r: number) => {
+      const b = base();
+      sel.scale.x = (2 * r) / b.x;
+      sel.scale.y = (2 * r) / b.y;
+      if (kind === 'sphere') sel.scale.z = (2 * r) / b.z; // kula skaluje się równo
+    };
+    const field = (label: string, key: string, apply: (v: number) => void, step = '0.5') => {
+      const l = document.createElement('label');
+      l.textContent = label;
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = step;
+      input.min = '0';
+      input.onchange = () => {
+        const v = parseFloat(input.value);
+        if (!Number.isFinite(v) || v <= 0) return this.updateValues();
+        this.model.checkpoint();
+        apply(v);
+        this.model.emit();
+      };
+      const unit = document.createElement('span');
+      unit.textContent = 'mm';
+      grid.append(l, input, unit);
+      this.inputs.set(key, input);
+    };
+    field('Średnica', 'round.d', (v) => setRadius(v / 2), '0.1');
+    field('Promień', 'round.r', (v) => setRadius(v), '0.1');
+    if (kind !== 'sphere') field('Wysokość', 'round.h', (v) => { sel.scale.z = v / base().z; }, '1');
+    box.appendChild(grid);
+
+    const note = document.createElement('p');
+    note.className = 'muted small';
+    note.dataset.role = 'roundnote';
+    box.appendChild(note);
+    this.body.appendChild(box);
+  }
+
+  private row(label: string, key: string, apply: (a: Axis, v: number) => void, selfCommit = false) {
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    row.innerHTML = `<span>${label}</span>`;
+    for (const a of AXES) {
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = key === 'rot' ? '5' : '1';
+      input.onchange = () => {
+        const v = parseFloat(input.value);
+        if (!Number.isFinite(v)) return this.updateValues();
+        if (selfCommit) return apply(a, v);
+        this.model.checkpoint();
+        apply(a, v);
+        this.model.emit();
+      };
+      row.appendChild(input);
+      this.inputs.set(`${key}.${a}`, input);
+    }
+    this.body.appendChild(row);
+  }
+
+  /** Aktualizuje liczby w polach – pomija pole, w którym użytkownik właśnie pisze. */
+  updateValues() {
+    const sel = this.model.selected;
+    if (!sel) return;
+    const set = (k: string, v: number) => {
+      const el = this.inputs.get(k);
+      if (el && document.activeElement !== el) el.value = fmt(v);
+    };
+    if (this.getMode() === 'object') {
+      const size = objectSize(sel);
+      for (const a of AXES) {
+        set(`pos.${a}`, sel.position[a]);
+        set(`rot.${a}`, THREE.MathUtils.radToDeg(sel.rotation[a]));
+        set(`size.${a}`, size[a]);
+      }
+      if (ROUND_KINDS[sel.userData.kind]) {
+        // średnica z szerokości; gdy X ≠ Y bryła jest owalna – pokazujemy X i informujemy
+        set('round.d', size.x);
+        set('round.r', size.x / 2);
+        set('round.h', size.z);
+        const note = this.body.querySelector<HTMLElement>('[data-role=roundnote]');
+        if (note) {
+          note.textContent = Math.abs(size.x - size.y) > 0.01
+            ? `Owal: ${fmt(size.x)} × ${fmt(size.y)} mm – wpisanie średnicy wyrówna go do koła.`
+            : '';
+        }
+      }
+    } else {
+      const n = this.editor.selection.size;
+      const info = this.body.querySelector<HTMLElement>('[data-role=vinfo]');
+      if (info) {
+        info.textContent = n === 0
+          ? 'Kliknij punkt na bryle i przeciągnij. Ctrl+klik – zaznacz kilka. Podwójny klik na krawędzi lub ścianie – nowy punkt.'
+          : `Zaznaczone punkty: ${n}${n > 1 ? ' (pola zmieniają wszystkie naraz)' : ''}`;
+      }
+      const w = this.editor.selectedWorld();
+      if (w) for (const a of AXES) set(`vtx.${a}`, w[a]);
+      if (this.editor.mirror) {
+        set('mirror', this.editor.mirror.offset);
+        const mi = this.body.querySelector<HTMLElement>('[data-role=mirrorinfo]');
+        if (mi) {
+          const n = this.editor.unpairedCount;
+          const ax = this.editor.mirror.axis.toUpperCase();
+          const state = n === 0 && this.editor.topologySymmetric ? 'ok' : n === 0 ? 'topo' : 'unpaired';
+          if (mi.dataset.state !== state || mi.dataset.n !== String(n)) {
+            mi.dataset.state = state;
+            mi.dataset.n = String(n);
+            mi.innerHTML = state === 'ok'
+              ? 'Bryła jest symetryczna. Punkty na płaszczyźnie przesuwają się tylko po niej.'
+              : state === 'topo'
+                ? '<span class="warn">Trójkąty po obu stronach są ułożone różnie</span> – dodawane punkty i linie nie będą lustrzane.'
+                : `<span class="warn">${n} punkt(ów) bez pary</span> (czerwone) – bryła nie jest symetryczna; te punkty przesuwają się bez odbicia.`;
+            if (state !== 'ok') {
+              const row = document.createElement('div');
+              row.className = 'btn-row';
+              row.append(
+                button(`Symetryzuj +${ax} → −${ax}`, () => this.editor.symmetrizeMesh(1)),
+                button(`−${ax} → +${ax}`, () => this.editor.symmetrizeMesh(-1)),
+              );
+              mi.appendChild(row);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+const ROUND_KINDS: Record<string, string> = { cylinder: 'Walec', cone: 'Stożek', sphere: 'Kula' };
+
+function axisHeader() {
+  const h = document.createElement('div');
+  h.className = 'axis-head';
+  h.innerHTML = '<span></span><b>X</b><b>Y</b><b>Z</b>';
+  return h;
+}
+
+function button(text: string, onClick: () => void) {
+  const b = document.createElement('button');
+  b.textContent = text;
+  b.onclick = onClick;
+  return b;
+}
