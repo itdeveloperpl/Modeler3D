@@ -163,6 +163,7 @@ function setBridge(on: boolean) {
   }
   bridge.setActive(on);
   $('bridge').classList.toggle('active', on);
+  $('bridge-panel').hidden = !on;
   canvas.style.cursor = on ? 'crosshair' : '';
   if (!on) {
     stickyUntil = 0;
@@ -170,6 +171,60 @@ function setBridge(on: boolean) {
   }
   sync();
 }
+
+// ---------- panel mostu ----------
+
+const bridgeSeg = $<HTMLInputElement>('bridge-seg');
+
+/** Kroki (1. ściana, 2. ściana), ustawienia łuku, ostrzeżenia i przycisk zatwierdzenia. */
+function syncBridgePanel() {
+  const st = bridge.state;
+  const step1 = $('bridge-step1'), step2 = $('bridge-step2');
+  step1.classList.toggle('current', !st.first);
+  step1.classList.toggle('done', !!st.first);
+  step2.classList.toggle('current', !!st.first && !st.second);
+  step2.classList.toggle('done', !!st.second);
+  $('bridge-step1-done').textContent = st.first ? t.bridge.panelPicked(st.first) : '';
+  $('bridge-step2-done').textContent = st.second ? t.bridge.panelPicked(st.second) : '';
+
+  $('bridge-options').hidden = !st.preview;
+  if (st.segments !== null && document.activeElement !== bridgeSeg) bridgeSeg.value = String(st.segments);
+
+  const info = $('bridge-info');
+  let text = '';
+  let warn = false;
+  if (st.error) {
+    text = t.bridge.error(st.error);
+    warn = true;
+  } else if (st.preview && !st.canApply) {
+    text = t.bridge.panelBlocked;
+    warn = true;
+  } else if (st.preview) {
+    text = st.warnings.length ? `${t.bridge.panelWarnings} ${st.warnings.join('; ')}` : t.bridge.panelReady;
+    warn = st.warnings.length > 0;
+  }
+  info.textContent = text;
+  info.classList.toggle('warn-text', warn);
+  $<HTMLButtonElement>('bridge-apply').disabled = !st.canApply;
+}
+bridge.onChange(syncBridgePanel);
+bridgeSeg.oninput = () => bridge.setSegments(parseFloat(bridgeSeg.value));
+$('bridge-rot-left').onclick = () => bridge.rotate(-1);
+$('bridge-rot-right').onclick = () => bridge.rotate(1);
+$('bridge-apply').onclick = () => bridge.apply();
+$('bridge-panel').addEventListener('keydown', (e) => {
+  const el = e.target as HTMLElement;
+  if (el.tagName !== 'INPUT') return;
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    el.blur();
+    bridge.apply();
+  } else if (e.key === 'Escape') {
+    el.blur();
+    if (!bridge.back()) setBridge(false);
+  }
+});
+syncBridgePanel();
 
 // ---------- zaokrąglanie rantów ----------
 
@@ -665,6 +720,8 @@ onLanguageChange(() => {
   langSelect.value = lang;
   view.setView(view.mode); // napis z nazwą widoku
   syncFilletPanel();
+  bridge.clearError(); // komunikat o błędzie był w poprzednim języku
+  syncBridgePanel();
   sidebar.rebuild();
   // komunikaty aktywnych narzędzi wyświetlą się w nowym języku przy następnym kroku
   if (pendingOp) status.textContent = pendingOpPrompt();

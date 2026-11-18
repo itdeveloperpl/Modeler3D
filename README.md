@@ -56,7 +56,9 @@ All of them work the same way: click the tool in the toolbar, then pick in the v
   Outlines may have a different number of points (e.g. square → circle). Faces at an angle are joined
   with an **arc** (↑/↓ – number of segments, ←/→ – rotate the matching). Preview before confirming,
   warnings about passing through solids and too tight a bend; a non-watertight result cannot
-  be confirmed.
+  be confirmed. A **panel** in the viewport guides you step by step (1st face → 2nd face),
+  holds the arc segments and matching controls, shows warnings and has the **Create bridge**
+  button, active only when the bridge can be created.
 - **Fillet and chamfer edges** (F) – click edges (the whole circle of a cylinder is one edge),
   radius / width and smoothness in the panel, **live preview**. Convex edges are
   rounded, concave corners are filled with an arc.

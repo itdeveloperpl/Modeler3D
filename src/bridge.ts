@@ -56,6 +56,9 @@ export class BridgeTool {
 
   private overlays = new THREE.Group();
   private messageListeners = new Set<(text: string) => void>();
+  private changeListeners = new Set<() => void>();
+  /** Ostatni błąd wskazania (np. ściana z otworem) – do pokazania w panelu. */
+  private lastError: string | null = null;
 
   constructor(private model: Model, private view: Viewport) {
     this.overlays.name = '__bridgeOverlays';
@@ -70,6 +73,37 @@ export class BridgeTool {
     this.messageListeners.forEach((fn) => fn(text));
   }
 
+  /** Zmiana stanu narzędzia – do odświeżenia panelu. */
+  onChange(fn: () => void) {
+    this.changeListeners.add(fn);
+  }
+
+  /** Stan dla panelu: które ściany wybrano, ustawienia łuku, ostrzeżenia, czy można zatwierdzić. */
+  get state() {
+    return {
+      first: this.a?.baked.mesh.name ?? null,
+      second: this.b?.baked.mesh.name ?? null,
+      segments: this.segments,
+      preview: !!this.result,
+      canApply: !!this.result?.closed,
+      warnings: this.result?.warnings ?? [],
+      error: this.lastError,
+    };
+  }
+
+  /** Usuwa chwilowy komunikat o błędzie (np. po zmianie języka – był w poprzednim). */
+  clearError() {
+    this.lastError = null;
+    this.changeListeners.forEach((fn) => fn());
+  }
+
+  /** Liczba segmentów łuku wpisana w panelu (0 = most prosty). */
+  setSegments(n: number) {
+    if (!this.a || !this.b || !Number.isFinite(n)) return;
+    this.segments = Math.max(0, Math.min(32, Math.round(n)));
+    this.build();
+  }
+
   setActive(on: boolean) {
     this.active = on;
     this.reset();
@@ -77,6 +111,7 @@ export class BridgeTool {
   }
 
   reset() {
+    this.lastError = null;
     this.a = this.b = this.hover = null;
     this.result = null;
     this.shift = 0;
@@ -138,16 +173,21 @@ export class BridgeTool {
     const pick = this.pickFace(e);
     if (!pick) return;
     if ('error' in pick) {
+      this.lastError = pick.error;
       this.message(t.bridge.error(pick.error));
+      this.changeListeners.forEach((fn) => fn());
       return;
     }
+    this.lastError = null;
     if (!this.a) {
       this.a = pick;
       this.hover = null;
       this.message(t.bridge.pickSecondSame);
     } else {
       if (pick.baked === this.a.baked && [...pick.tris].some((t) => this.a!.tris.has(t))) {
+        this.lastError = t.bridge.pickOtherShort;
         this.message(t.bridge.pickOther);
+        this.changeListeners.forEach((fn) => fn());
         return;
       }
       this.b = pick;
@@ -500,6 +540,7 @@ export class BridgeTool {
   // ---------- rysowanie ----------
 
   private redraw() {
+    this.changeListeners.forEach((fn) => fn());
     this.overlays.children.slice().forEach((o) => {
       this.overlays.remove(o);
       o.traverse((c) => {

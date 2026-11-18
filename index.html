@@ -102,6 +102,25 @@
             <p class="muted small" id="fillet-info"></p>
             <button id="fillet-apply" class="primary" disabled data-i18n="ui.filletApply">Zastosuj (Enter)</button>
           </div>
+          <div id="bridge-panel" class="float-panel" hidden>
+            <div class="fp-title" data-i18n="ui.bridgePanelTitle">Most</div>
+            <ol class="steps">
+              <li id="bridge-step1"><span data-i18n="ui.bridgeStep1">Zaznacz pierwszą płaską ścianę</span><b class="step-done" id="bridge-step1-done"></b></li>
+              <li id="bridge-step2"><span data-i18n="ui.bridgeStep2">Zaznacz drugą płaską ścianę</span><b class="step-done" id="bridge-step2-done"></b></li>
+            </ol>
+            <div id="bridge-options" hidden>
+              <div class="param-grid">
+                <label data-i18n="ui.bridgeSegments">Segmenty łuku</label><input type="number" id="bridge-seg" min="0" max="32" step="1" /><span></span>
+                <label data-i18n="ui.bridgeMatching">Dopasowanie</label>
+                <div class="btn-row seg" style="margin:0" data-i18n-title="ui.bridgeMatchingTitle">
+                  <button id="bridge-rot-left">◀</button><button id="bridge-rot-right">▶</button>
+                </div><span></span>
+              </div>
+              <p class="muted small" data-i18n="ui.bridgeSegmentsHint">0 = most prosty</p>
+            </div>
+            <p class="muted small" id="bridge-info"></p>
+            <button id="bridge-apply" class="primary" disabled data-i18n="ui.bridgeApply">Utwórz most (Enter)</button>
+          </div>
         </div>
         <aside id="sidebar">
           <section>
