@@ -177,6 +177,42 @@ export class Viewport {
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
+  private gridGroup = new THREE.Group();
+
+  /**
+   * Siatka stołu: w mm co 1 mm (drobna) i 10 mm (główna), w calach co 0,1″ i 1″.
+   * Linie przechodzą przez środek stołu, więc współrzędne węzłów to pełne wartości jednostki.
+   */
+  setGridUnit(u: 'mm' | 'in') {
+    this.gridGroup.children.slice().forEach((g) => {
+      this.gridGroup.remove(g);
+      (g as THREE.GridHelper).geometry.dispose();
+      ((g as THREE.GridHelper).material as THREE.Material).dispose();
+    });
+    let size: number, fineDiv: number, majorDiv: number;
+    if (u === 'mm') {
+      size = BED.x;
+      fineDiv = BED.x;
+      majorDiv = BED.x / 10;
+    } else {
+      const inches = Math.floor(BED.x / 25.4 / 2) * 2; // parzysta liczba cali – linia w środku stołu
+      size = inches * 25.4;
+      fineDiv = inches * 10;
+      majorDiv = inches;
+    }
+    const fine = new THREE.GridHelper(size, fineDiv, 0x4a515b, 0x434952);
+    const major = new THREE.GridHelper(size, majorDiv, 0x6b7480, 0x6b7480);
+    for (const g of [fine, major]) {
+      g.rotation.x = Math.PI / 2; // GridHelper leży w XZ – kładziemy na XY
+      (g.material as THREE.Material).transparent = true;
+      g.raycast = () => {};
+    }
+    (fine.material as THREE.Material).opacity = 0.35;
+    (major.material as THREE.Material).opacity = 0.8;
+    fine.name = '__fineGrid';
+    this.gridGroup.add(fine, major);
+  }
+
   private buildBed() {
     const bed = new THREE.Group();
     bed.name = '__bed';
@@ -189,17 +225,8 @@ export class Viewport {
     plate.receiveShadow = true;
     bed.add(plate);
 
-    // siatka 1 mm (drobna), 10 mm (główna)
-    const fine = new THREE.GridHelper(BED.x, BED.x, 0x4a515b, 0x434952);
-    const major = new THREE.GridHelper(BED.x, BED.x / 10, 0x6b7480, 0x6b7480);
-    for (const g of [fine, major]) {
-      g.rotation.x = Math.PI / 2; // GridHelper leży w XZ – kładziemy na XY
-      (g.material as THREE.Material).transparent = true;
-    }
-    (fine.material as THREE.Material).opacity = 0.35;
-    (major.material as THREE.Material).opacity = 0.8;
-    fine.name = '__fineGrid';
-    bed.add(fine, major);
+    bed.add(this.gridGroup);
+    this.setGridUnit('mm');
 
     // osie X (czerwona) i Y (zielona) od środka stołu
     const axes = new THREE.LineSegments(

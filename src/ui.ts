@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { dropToPlate, objectSize, type Model, type ModelMesh } from './model';
 import type { VertexEditor } from './vertexEditor';
 import { t } from './i18n';
+import { fromUnit, inputStep, lenValue, toUnit, unit, unitLabel } from './units';
 
 type Axis = 'x' | 'y' | 'z';
 const AXES: Axis[] = ['x', 'y', 'z'];
@@ -63,7 +64,7 @@ export class Sidebar {
     for (const o of this.model.objects) {
       const li = document.createElement('li');
       const s = objectSize(o);
-      li.innerHTML = `<span></span><span class="dim">${fmt(s.x, 1)}×${fmt(s.y, 1)}×${fmt(s.z, 1)}</span>`;
+      li.innerHTML = `<span></span><span class="dim">${lenValue(s.x, 1)}×${lenValue(s.y, 1)}×${lenValue(s.z, 1)}</span>`;
       li.firstElementChild!.textContent = o.name;
       if (o === this.model.selected) li.classList.add('selected');
       li.onclick = () => this.model.select(o);
@@ -116,9 +117,10 @@ export class Sidebar {
     this.body.appendChild(color);
 
     this.body.appendChild(axisHeader());
-    this.row(t.sidebar.position, 'pos', (a, v) => { sel.position[a] = v; });
+    this.row(t.sidebar.position, 'pos', (a, v) => { sel.position[a] = fromUnit(v); });
     this.row(t.sidebar.rotation, 'rot', (a, v) => { sel.rotation[a] = THREE.MathUtils.degToRad(v); });
-    this.row(t.sidebar.size, 'size', (a, v) => {
+    this.row(t.sidebar.size, 'size', (a, value) => {
+      const v = fromUnit(value);
       if (v <= 0) return;
       const base = sel.geometry.boundingBox!.getSize(new THREE.Vector3())[a];
       if (base > 1e-6) sel.scale[a] = v / base;
@@ -156,7 +158,7 @@ export class Sidebar {
       return input;
     };
     const count = num(t.sidebar.copies, this.arrayState.count, t.sidebar.pcs, '1', '1');
-    const gap = num(t.sidebar.gap, this.arrayState.gap, 'mm', '0', '1');
+    const gap = num(t.sidebar.gap, this.arrayState.gap, unitLabel(), '0', inputStep());
     count.oninput = () => (this.arrayState.count = count.value);
     gap.oninput = () => (this.arrayState.gap = gap.value);
 
@@ -178,7 +180,7 @@ export class Sidebar {
 
     const go = button(t.sidebar.createCopies, () => {
       const n = Math.floor(parseFloat(count.value));
-      const g = parseFloat(gap.value);
+      const g = fromUnit(parseFloat(gap.value));
       if (!(n >= 1) || !(g >= 0)) return;
       // krok = rozmiar bryły w danym kierunku + przerwa, więc kopie nigdy na siebie nie nachodzą
       sel.updateMatrixWorld(true);
@@ -195,6 +197,16 @@ export class Sidebar {
   /** Ostatnie ustawienia powielania (zostają przy przełączaniu brył). */
   private arrayState = { count: '3', gap: '5', dir: 'x' as 'x' | 'y' };
 
+  /** Po zmianie jednostek przeliczamy wpisaną przerwę powielania (pole trzyma liczbę w jednostce). */
+  unitChanged(from: 'mm' | 'in') {
+    const g = parseFloat(this.arrayState.gap);
+    if (Number.isFinite(g)) {
+      const mm = from === 'in' ? g * 25.4 : g;
+      this.arrayState.gap = lenValue(mm);
+    }
+    this.rebuild();
+  }
+
   // ---------- tryb wierzchołków ----------
 
   private buildVertexProps() {
@@ -205,7 +217,7 @@ export class Sidebar {
     this.body.appendChild(info);
     if (this.editor.selection.size > 0) {
       this.body.appendChild(axisHeader());
-      this.row(t.sidebar.point, 'vtx', (a, v) => this.editor.setSelectedAxis(a, v), true);
+      this.row(t.sidebar.point, 'vtx', (a, v) => this.editor.setSelectedAxis(a, fromUnit(v)), true);
     }
     const btns = document.createElement('div');
     btns.className = 'btn-row';
@@ -239,14 +251,14 @@ export class Sidebar {
       row.innerHTML = `<span>${t.sidebar.plane(current.toUpperCase())}</span>`;
       const input = document.createElement('input');
       input.type = 'number';
-      input.step = '1';
+      input.step = inputStep();
       input.onchange = () => {
         const v = parseFloat(input.value);
-        if (Number.isFinite(v)) this.editor.setMirror(current, v);
+        if (Number.isFinite(v)) this.editor.setMirror(current, fromUnit(v));
         else this.updateValues();
       };
       this.inputs.set('mirror', input);
-      row.append(input, document.createTextNode('mm'));
+      row.append(input, document.createTextNode(unitLabel()));
       row.appendChild(button(t.sidebar.center, () => {
         const g = this.model.selected!.geometry;
         g.computeBoundingBox();
@@ -289,28 +301,28 @@ export class Sidebar {
       sel.scale.y = (2 * r) / b.y;
       if (kind === 'sphere') sel.scale.z = (2 * r) / b.z; // kula skaluje się równo
     };
-    const field = (label: string, key: string, apply: (v: number) => void, step = '0.5') => {
+    const field = (label: string, key: string, apply: (mm: number) => void, mmStep = 0.5) => {
       const l = document.createElement('label');
       l.textContent = label;
       const input = document.createElement('input');
       input.type = 'number';
-      input.step = step;
+      input.step = inputStep(mmStep);
       input.min = '0';
       input.onchange = () => {
         const v = parseFloat(input.value);
         if (!Number.isFinite(v) || v <= 0) return this.updateValues();
         this.model.checkpoint();
-        apply(v);
+        apply(fromUnit(v));
         this.model.emit();
       };
-      const unit = document.createElement('span');
-      unit.textContent = 'mm';
-      grid.append(l, input, unit);
+      const u = document.createElement('span');
+      u.textContent = unitLabel();
+      grid.append(l, input, u);
       this.inputs.set(key, input);
     };
-    field(t.sidebar.diameter, 'round.d', (v) => setRadius(v / 2), '0.1');
-    field(t.sidebar.radius, 'round.r', (v) => setRadius(v), '0.1');
-    if (kind !== 'sphere') field(t.sidebar.height, 'round.h', (v) => { sel.scale.z = v / base().z; }, '1');
+    field(t.sidebar.diameter, 'round.d', (v) => setRadius(v / 2), 0.1);
+    field(t.sidebar.radius, 'round.r', (v) => setRadius(v), 0.1);
+    if (kind !== 'sphere') field(t.sidebar.height, 'round.h', (v) => { sel.scale.z = v / base().z; }, 1);
     box.appendChild(grid);
 
     const note = document.createElement('p');
@@ -327,7 +339,7 @@ export class Sidebar {
     for (const a of AXES) {
       const input = document.createElement('input');
       input.type = 'number';
-      input.step = key === 'rot' ? '5' : '1';
+      input.step = key === 'rot' ? '5' : inputStep();
       input.onchange = () => {
         const v = parseFloat(input.value);
         if (!Number.isFinite(v)) return this.updateValues();
@@ -348,24 +360,26 @@ export class Sidebar {
     if (!sel) return;
     const set = (k: string, v: number) => {
       const el = this.inputs.get(k);
-      if (el && document.activeElement !== el) el.value = fmt(v);
+      if (el && document.activeElement !== el) el.value = fmt(v, unit === 'in' && !k.startsWith('rot') ? 3 : 2);
     };
+    /** Długość: wartość w mm, w polu w bieżącej jednostce. */
+    const setLen = (k: string, mm: number) => set(k, toUnit(mm));
     if (this.getMode() === 'object') {
       const size = objectSize(sel);
       for (const a of AXES) {
-        set(`pos.${a}`, sel.position[a]);
+        setLen(`pos.${a}`, sel.position[a]);
         set(`rot.${a}`, THREE.MathUtils.radToDeg(sel.rotation[a]));
-        set(`size.${a}`, size[a]);
+        setLen(`size.${a}`, size[a]);
       }
       if (ROUND_KINDS.includes(sel.userData.kind)) {
         // średnica z szerokości; gdy X ≠ Y bryła jest owalna – pokazujemy X i informujemy
-        set('round.d', size.x);
-        set('round.r', size.x / 2);
-        set('round.h', size.z);
+        setLen('round.d', size.x);
+        setLen('round.r', size.x / 2);
+        setLen('round.h', size.z);
         const note = this.body.querySelector<HTMLElement>('[data-role=roundnote]');
         if (note) {
           note.textContent = Math.abs(size.x - size.y) > 0.01
-            ? t.sidebar.oval(fmt(size.x), fmt(size.y))
+            ? t.sidebar.oval(lenValue(size.x), lenValue(size.y), unitLabel())
             : '';
         }
       }
@@ -378,9 +392,9 @@ export class Sidebar {
           : t.sidebar.vertexSelected(n);
       }
       const w = this.editor.selectedWorld();
-      if (w) for (const a of AXES) set(`vtx.${a}`, w[a]);
+      if (w) for (const a of AXES) setLen(`vtx.${a}`, w[a]);
       if (this.editor.mirror) {
-        set('mirror', this.editor.mirror.offset);
+        setLen('mirror', this.editor.mirror.offset);
         const mi = this.body.querySelector<HTMLElement>('[data-role=mirrorinfo]');
         if (mi) {
           const n = this.editor.unpairedCount;

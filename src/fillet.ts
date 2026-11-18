@@ -5,6 +5,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import type { Model, ModelMesh } from './model';
 import type { Viewport } from './viewport';
 import { applyShapes, type RawMesh } from './csg';
+import { lenText } from './units';
 import { t } from './i18n';
 
 /**
@@ -203,7 +204,7 @@ export class FilletTool {
       const n = this.selected.size;
       this.clear();
       this.model.select(target);
-      this.message(t.fillet.done(this.kind === 'round', n, r, tooBig ? this.tooBigText(tooBig) : null));
+      this.message(t.fillet.done(this.kind === 'round', n, lenText(r), tooBig ? this.tooBigText(tooBig) : null));
       return true;
     } catch (err) {
       this.message(t.fillet.failed((err as Error).message));

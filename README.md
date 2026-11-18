@@ -75,6 +75,15 @@ All of them work the same way: click the tool in the toolbar, then pick in the v
   circle) do not. The measurement follows moved solids and vertices; ⊥ in the label = perpendicular measurement.
 
 ### Files ("File ▾" menu)
+- **Imperial units** – **⚙ Settings → Units**: millimetres or inches. All lengths in the panel,
+  the ruler, the status bar and the fillet radius are shown and entered in the chosen unit;
+  snapping steps become 1/32″ … 1″ and the bed grid switches to 1″ / 0.1″. Internally and in
+  project, STL and 3MF files everything stays in millimetres. The choice is remembered.
+- **Remembered in the tab** – the project is kept in `sessionStorage`, so reloading the page
+  does not lose your work (the copy disappears when the tab is closed). Can be turned off in
+  **⚙ Settings → Project**; a warning appears if the project is too large to remember.
+- **New project** – clears the project after a confirmation dialog (all solids and the undo
+  history are removed; Esc, Cancel or clicking outside keeps everything).
 - **Save / Open** project (JSON, Ctrl+S / Ctrl+O) – preserves shape, position, colors and names.
 - **STL export** (binary) and **3MF export** (mm units, separate objects with names
   and colors). A warning is shown when part of a solid is below the bed.
@@ -84,7 +93,7 @@ All of them work the same way: click the tool in the toolbar, then pick in the v
 - **Top toolbar** – groups by purpose: *Add* (solids), *Edit* (undo/redo, object/vertex
   mode, move/rotate/scale, duplicate, delete), *Modeling*
   (subtract, union, intersect, bridge, fillet), *View* (3D, top, ruler),
-  and on the right the **File ▾** menu (open, save, STL / 3MF export) and **⚙ Settings**
+  and on the right the **File ▾** menu (new, open, save, STL / 3MF export) and **⚙ Settings**
   (grid snapping, grid step, interface language).
 - **Right panel** – object list and **properties** of the selected solid (name, color,
   position, rotation, dimensions, drop to bed, linear array).

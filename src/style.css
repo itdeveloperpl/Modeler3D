@@ -126,3 +126,11 @@ button.link:hover { text-decoration: underline; }
 .steps .step-done:empty { display: none; }
 #bridge-panel .param-grid { grid-template-columns: 100px 1fr; }
 #bridge-panel .param-grid > span { display: none; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+  background: rgba(10, 12, 15, .55); }
+.modal-backdrop[hidden] { display: none; }
+.float-panel.dialog { position: static; width: 360px; max-width: calc(100vw - 32px); padding: 14px 16px; }
+.float-panel.dialog p { margin: 0 0 14px; line-height: 1.5; }
+.dialog-buttons { display: flex; justify-content: flex-end; gap: 8px; }
+button.danger { background: #d9534f; border-color: #d9534f; color: #fff; font-weight: 600; }
+button.danger:hover { background: #e2615d; border-color: #e2615d; }

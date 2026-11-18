@@ -6,6 +6,7 @@ import type { Model, ModelMesh } from './model';
 import type { Viewport } from './viewport';
 import { dotTexture } from './vertexEditor';
 import { findChains, type Chain } from './fillet';
+import { lenText } from './units';
 import { t } from './i18n';
 
 const VERTEX_NEAR = 12; // px – narożnik tak blisko kursora ma pierwszeństwo przed rantem
@@ -227,8 +228,8 @@ export class MeasureTool {
       this.label.hidden = s.z > 1 || s.x < 0 || s.y < 0 || s.x > width || s.y > height;
       this.label.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -130%)`;
       const d = m.q.clone().sub(m.p);
-      const html = `<b>${fmt(d.length())} mm${m.perpendicular ? ' ⊥' : ''}</b>` +
-        `<span>ΔX ${fmt(Math.abs(d.x))} · ΔY ${fmt(Math.abs(d.y))} · ΔZ ${fmt(Math.abs(d.z))}</span>`;
+      const html = `<b>${lenText(d.length())}${m.perpendicular ? ' ⊥' : ''}</b>` +
+        `<span>ΔX ${fmtD(d.x)} · ΔY ${fmtD(d.y)} · ΔZ ${fmtD(d.z)}</span>`;
       if (this.label.innerHTML !== html) this.label.innerHTML = html;
     } else {
       this.label.hidden = true;
@@ -460,9 +461,10 @@ function setPoints(obj: THREE.Line | THREE.Points, pts: THREE.Vector3[]) {
   attr.needsUpdate = true;
 }
 
-const fmt = (v: number) => (Math.round(v * 100) / 100).toFixed(2);
+/** Składowa odległości (bez jednostki – jest przy wyniku głównym). */
+const fmtD = (mm: number) => lenText(Math.abs(mm)).split(' ')[0];
 
 function describe(a: THREE.Vector3, b: THREE.Vector3) {
   const d = b.clone().sub(a);
-  return `${fmt(d.length())} mm  (ΔX ${fmt(Math.abs(d.x))}  ΔY ${fmt(Math.abs(d.y))}  ΔZ ${fmt(Math.abs(d.z))})`;
+  return `${lenText(d.length())}  (ΔX ${fmtD(d.x)}  ΔY ${fmtD(d.y)}  ΔZ ${fmtD(d.z)})`;
 }

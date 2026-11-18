@@ -4,6 +4,8 @@ import { BED, Viewport, type ViewMode } from './viewport';
 import { VertexEditor } from './vertexEditor';
 import { MeasureTool } from './measure';
 import { BridgeTool } from './bridge';
+import { fromUnit, lenValue, onUnitChange, setUnit, snapOptions, toUnit, unit, unitDigits, unitLabel, type Unit } from './units';
+import { autosaveEnabled, clearSession, loadSession, saveSession, setAutosaveEnabled } from './session';
 import { FilletTool } from './fillet';
 import { Sidebar } from './ui';
 import { export3MF, exportSTL, openProject, saveProject } from './io';
@@ -264,7 +266,7 @@ function syncFilletPanel() {
   document.querySelectorAll<HTMLButtonElement>('#fillet-kind button').forEach((b) => b.classList.toggle('active', b.dataset.kind === fillet.kind));
 }
 fillet.onChange(syncFilletPanel);
-filletR.oninput = () => { fillet.radius = parseFloat(filletR.value); fillet.paramsChanged(); };
+filletR.oninput = () => { fillet.radius = fromUnit(parseFloat(filletR.value)); fillet.paramsChanged(); };
 filletSeg.oninput = () => { fillet.segments = parseFloat(filletSeg.value); fillet.paramsChanged(); };
 document.querySelectorAll<HTMLButtonElement>('#fillet-kind button').forEach((b) => {
   b.onclick = () => {
@@ -301,7 +303,7 @@ function duplicate(src: ModelMesh, count = 1, step?: THREE.Vector3) {
   }).length;
   stickyStatus(
     (copies.length === 1 ? t.status.copyCreated(copies[0].name) : t.status.copiesCreated(copies.length)) +
-    (outside ? t.status.outsideBed(outside, BED.x, BED.y) : ''),
+    (outside ? t.status.outsideBed(outside, `${lenValue(BED.x, 1)}×${lenValue(BED.y, 1)} ${unitLabel()}`) : ''),
   );
 }
 
@@ -475,10 +477,11 @@ function showCursorPosition(e: PointerEvent) {
   if (performance.now() < stickyUntil) return;
   const p = view.rayFromEvent(e).ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Vector3());
   const parts: string[] = pendingOp ? [pendingOpPrompt()] : [];
-  if (p) parts.push(t.status.bed(p.x.toFixed(1), p.y.toFixed(1)));
+  const f = (mm: number, digits: number) => toUnit(mm).toFixed(unitDigits(digits));
+  if (p) parts.push(t.status.bed(f(p.x, 1), f(p.y, 1), unitLabel()));
   if (mode === 'vertex' && editor.dragging) {
     const w = editor.selectedWorld();
-    if (w) parts.push(t.status.point(w.x.toFixed(2), w.y.toFixed(2), w.z.toFixed(2)));
+    if (w) parts.push(t.status.point(f(w.x, 2), f(w.y, 2), f(w.z, 2)));
   }
   status.textContent = parts.join('   |   ') || t.status.ready;
 }
@@ -523,6 +526,45 @@ $('save').onclick = () => {
   saveProject(model);
   stickyStatus(t.status.saved(t.misc.projectFile));
 };
+// ---------- nowy projekt (z potwierdzeniem) ----------
+
+const newDialog = $('new-dialog');
+const newDialogOpen = () => !newDialog.hidden;
+function askNewProject() {
+  closeMenus();
+  $('new-dialog-text').textContent = t.status.newQuestion(model.objects.length);
+  newDialog.hidden = false;
+  setBackgroundInert(true);
+  $('new-cancel').focus(); // domyślnie bezpieczny wybór – Enter nic nie usunie
+}
+function closeNewDialog() {
+  newDialog.hidden = true;
+  setBackgroundInert(false);
+}
+/** Na czas okna reszta strony jest nieaktywna (Tab nie ucieka do przycisków pod spodem). */
+function setBackgroundInert(on: boolean) {
+  for (const id of ['toolbar', 'statusbar']) $(id).inert = on;
+  document.querySelector<HTMLElement>('main')!.inert = on;
+}
+function newProject() {
+  closeNewDialog();
+  // wyłącz narzędzia, żeby nie trzymały odwołań do usuwanych brył
+  if (pendingOp) cancelBoolean();
+  if (measure.active) setMeasure(false);
+  if (bridge.active) setBridge(false);
+  if (fillet.active) setFillet(false);
+  setMode('object');
+  model.load({ version: 1, objects: [] }); // czyści też historię cofania
+  stickyStatus(t.status.newDone);
+}
+$('new').onclick = askNewProject;
+$('new-cancel').onclick = closeNewDialog;
+$('new-confirm').onclick = newProject;
+// kliknięcie w przyciemnione tło = Anuluj
+newDialog.addEventListener('pointerdown', (e) => {
+  if (e.target === newDialog) closeNewDialog();
+});
+
 $('open').onclick = () => $('file-input').click();
 $('file-input').onchange = async (e) => {
   const input = e.target as HTMLInputElement;
@@ -605,6 +647,14 @@ document.addEventListener('pointerdown', (e) => {
 // ---------- klawiatura ----------
 
 window.addEventListener('keydown', (e) => {
+  // otwarte okno potwierdzenia: tylko Esc (anuluj) i Tab/Enter na jego przyciskach
+  if (newDialogOpen()) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeNewDialog();
+    } else if (e.key !== 'Tab' && e.key !== 'Enter' && e.key !== ' ') e.preventDefault();
+    return;
+  }
   const el = e.target as HTMLElement;
   if (el.tagName === 'INPUT' || el.tagName === 'SELECT') return;
   const ctrl = e.ctrlKey || e.metaKey;
@@ -721,6 +771,7 @@ onLanguageChange(() => {
   view.setView(view.mode); // napis z nazwą widoku
   syncFilletPanel();
   bridge.clearError(); // komunikat o błędzie był w poprzednim języku
+  if (newDialogOpen()) $('new-dialog-text').textContent = t.status.newQuestion(model.objects.length);
   syncBridgePanel();
   sidebar.rebuild();
   // komunikaty aktywnych narzędzi wyświetlą się w nowym języku przy następnym kroku
@@ -730,13 +781,103 @@ onLanguageChange(() => {
 
 // ---------- start ----------
 
+// ---------- jednostki (mm / cale) ----------
+
+const unitsSelect = $<HTMLSelectElement>('units');
+const snapSelect = $<HTMLSelectElement>('snap-size');
+
+/** Kroki przyciągania w bieżącej jednostce; zaznacza krok najbliższy podanemu (w mm). */
+function fillSnapOptions(nearMm: number) {
+  const opts = snapOptions();
+  snapSelect.innerHTML = '';
+  let best = 0;
+  opts.forEach((o, i) => {
+    const el = document.createElement('option');
+    el.value = String(o.mm);
+    el.textContent = o.label;
+    snapSelect.appendChild(el);
+    if (Math.abs(Math.log(o.mm / nearMm)) < Math.abs(Math.log(opts[best].mm / nearMm))) best = i;
+  });
+  snapSelect.selectedIndex = best;
+}
+
+/** Pola z długością, które nie należą do panelu bocznego. */
+function syncUnitFields() {
+  filletR.value = lenValue(fillet.radius);
+  filletR.step = unit === 'in' ? '0.01' : '0.5';
+  $('fillet-r-unit').textContent = unitLabel();
+}
+
+unitsSelect.value = unit;
+fillSnapOptions(parseFloat(snapSelect.value) || 1);
+syncUnitFields();
+view.setGridUnit(unit);
+unitsSelect.onchange = () => setUnit(unitsSelect.value as Unit);
+onUnitChange(() => {
+  const from: Unit = unit === 'in' ? 'mm' : 'in';
+  unitsSelect.value = unit;
+  fillSnapOptions(editor.snapStep);
+  applySnap();
+  syncUnitFields();
+  view.setGridUnit(unit);
+  sidebar.unitChanged(from);
+  syncFilletPanel();
+});
+
+// ---------- zapamiętywanie projektu w karcie (sessionStorage) ----------
+
+const autosaveBox = $<HTMLInputElement>('autosave');
+autosaveBox.checked = autosaveEnabled();
+let saveTimer = 0;
+let savePending = false;
+let quotaWarned = false;
+
+function saveNow() {
+  clearTimeout(saveTimer);
+  savePending = false;
+  if (!autosaveBox.checked) return;
+  const res = saveSession(model.serialize());
+  if (res === 'quota' && !quotaWarned) stickyStatus(t.status.sessionQuota);
+  quotaWarned = res === 'quota'; // ostrzegamy raz, aż projekt znów się zmieści
+}
+/** Zapis chwilę po ostatniej zmianie – nie przy każdym ruchu. */
+function scheduleSave() {
+  if (!autosaveBox.checked) return;
+  savePending = true;
+  clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(saveNow, 500);
+}
+model.onChange(scheduleSave);
+// odświeżenie / zamknięcie strony zaraz po zmianie – zapisz od razu
+window.addEventListener('pagehide', () => savePending && saveNow());
+autosaveBox.onchange = () => {
+  setAutosaveEnabled(autosaveBox.checked); // wyłączenie usuwa zapamiętaną kopię
+  if (autosaveBox.checked) saveNow();
+};
+
+// ---------- start ----------
+
 setTool(tool);
 applySnap();
-model.addPrimitive('box');
-// pierwsza bryła nie powinna dać się "cofnąć" do pustej sceny przy starcie
-model.clearHistory();
+const restored = autosaveBox.checked ? loadSession() : null;
+let restoredOk = false;
+if (restored) {
+  try {
+    model.load(restored); // czyści historię – cofanie zaczyna się od przywróconego stanu
+    restoredOk = true;
+  } catch {
+    clearSession(); // uszkodzona kopia – zaczynamy od nowa
+    model.load({ version: 1, objects: [] }); // bez resztek częściowo wczytanej kopii
+  }
+}
+if (!restoredOk) {
+  model.addPrimitive('box');
+  // pierwsza bryła nie powinna dać się "cofnąć" do pustej sceny przy starcie
+  model.clearHistory();
+}
 sync();
-status.textContent = t.status.ready;
+if (restoredOk) stickyStatus(t.status.sessionRestored(model.objects.length));
+else status.textContent = t.status.ready;
 
 // dostęp z konsoli przeglądarki (tylko w trybie deweloperskim)
 if (import.meta.env.DEV) Object.assign(window, { app: { model, view, editor, measure, bridge, fillet } });

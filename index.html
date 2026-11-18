@@ -51,6 +51,7 @@
         <div class="group right menu-group">
           <button id="file-btn" class="toggle" aria-haspopup="true" data-i18n="ui.file">Plik ▾</button>
           <div id="file-menu" class="popup popover menu" role="menu" hidden>
+            <button id="new" role="menuitem"><span data-i18n="ui.newProject">Nowy projekt</span></button>
             <button id="open" role="menuitem"><span data-i18n="ui.open">Otwórz projekt…</span><kbd>Ctrl+O</kbd></button>
             <button id="save" role="menuitem"><span data-i18n="ui.save">Zapisz projekt</span><kbd>Ctrl+S</kbd></button>
             <hr />
@@ -76,6 +77,17 @@
                 </select>
               </div>
               <p class="muted small" data-i18n="ui.snapHint">Przytrzymaj Alt podczas przeciągania, żeby chwilowo wyłączyć przyciąganie. Obrót przyciąga co 15°.</p>
+              <h3 data-i18n="ui.unitsHeading">Jednostki</h3>
+              <div class="settings-row">
+                <select id="units">
+                  <option value="mm" data-i18n="ui.unitsMm">Milimetry (mm)</option>
+                  <option value="in" data-i18n="ui.unitsIn">Cale (in)</option>
+                </select>
+              </div>
+              <p class="muted small" data-i18n="ui.unitsHint">Dotyczy wyświetlania i wpisywania wartości. Pliki projektu, STL i 3MF zawsze są w milimetrach.</p>
+              <h3 data-i18n="ui.sessionHeading">Projekt</h3>
+              <label class="check"><input type="checkbox" id="autosave" checked /> <span data-i18n="ui.sessionLabel">Zapamiętuj projekt w tej karcie</span></label>
+              <p class="muted small" data-i18n="ui.sessionHint">Odświeżenie strony nie usunie pracy. Kopia znika po zamknięciu karty – do trwałego zapisu użyj Plik → Zapisz projekt.</p>
               <h3 data-i18n="ui.language">Język / Language</h3>
               <div class="settings-row">
                 <select id="language">
@@ -96,7 +108,7 @@
               <button data-kind="chamfer" data-i18n="ui.filletChamfer">Faza</button>
             </div>
             <div class="param-grid">
-              <label id="fillet-r-label">Promień</label><input type="number" id="fillet-r" value="2" min="0.1" step="0.5" /><span>mm</span>
+              <label id="fillet-r-label">Promień</label><input type="number" id="fillet-r" value="2" min="0" step="0.5" /><span id="fillet-r-unit">mm</span>
               <label data-i18n="ui.smoothness">Gładkość</label><input type="number" id="fillet-seg" value="8" min="2" max="32" step="1" /><span data-i18n="ui.segmentsUnit">segm.</span>
             </div>
             <p class="muted small" id="fillet-info"></p>
@@ -137,6 +149,16 @@
         <span id="status"></span>
         <button id="shortcuts-link" class="link" title="Skróty klawiszowe (?)" data-i18n="ui.shortcuts" data-i18n-title="ui.shortcutsTitle">Skróty klawiszowe</button>
       </footer>
+      <div id="new-dialog" class="modal-backdrop" hidden>
+        <div class="float-panel dialog" role="alertdialog" aria-modal="true" aria-labelledby="new-dialog-title" aria-describedby="new-dialog-text">
+          <div class="fp-title" id="new-dialog-title" data-i18n="ui.newTitle">Nowy projekt</div>
+          <p class="muted" id="new-dialog-text"></p>
+          <div class="dialog-buttons">
+            <button id="new-cancel" data-i18n="ui.cancel">Anuluj</button>
+            <button id="new-confirm" class="danger" data-i18n="ui.newConfirm">Wyczyść projekt</button>
+          </div>
+        </div>
+      </div>
       <div id="shortcuts-popup" class="popup" role="dialog" aria-label="Skróty klawiszowe" data-i18n-aria="ui.shortcuts" hidden>
         <div class="popup-head">
           <b data-i18n="ui.shortcuts">Skróty klawiszowe</b>
